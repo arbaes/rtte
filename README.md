@@ -8,7 +8,7 @@ Rust reimplementation of [TerminalTextEffects (TTE)](https://github.com/ChrisBui
 
 This is my first Rust project, built primarily for my own needs. I will not lie to you, I used AI's assistance a lot in this. This was mostly a fun experiment to see how TTE's effects could be implemented in Rust, and to learn Rust in the process.
 
-**All credit for the original effects, design, and concept goes to [ChrisBuilds](https://github.com/ChrisBuilds/terminaltexteffects).** This project is a reimplementation attempt, not an original work.
+**All credit for the original effects, design, and concept goes to [ChrisBuilds](https://github.com/ChrisBuilds/terminaltexteffects) and all [TTE contributors](https://github.com/ChrisBuilds/terminaltexteffects/graphs/contributors).** This project is a reimplementation attempt, not an original work.
 
 The whole project was only tested on my machine (Arch Linux, x86_64), so there may be platform-specific bugs or performance issues. Contributions to fix those are welcome, but I won't be able to personally verify every platform, nor do I plan to maintain this long-term for other than my personal uses. **Use at your own risk**, and expect that it may be a bit rough around the edges.
 
@@ -16,7 +16,7 @@ The whole project was only tested on my machine (Arch Linux, x86_64), so there m
 
 ## What is it?
 
-`rtte` takes text from stdin (or a file) and animates it in the terminal using one of 37 visual effects. It's a drop-in replacement for the `tte` CLI from [TerminalTextEffects](https://github.com/ChrisBuilds/terminaltexteffects), but compiled to a native Rust binary.
+`rtte` takes text from stdin (or a file) and animates it in the terminal using one of many visual effects. It's a drop-in replacement for the `tte` CLI from [TerminalTextEffects](https://github.com/ChrisBuilds/terminaltexteffects), but compiled to a native Rust binary.
 
 The main objective was to get better performance when you're piping output from `toilet` or similar, and use some shader effect in terminals like `cool-retro-term`, on big 4K screens.
 
@@ -27,7 +27,10 @@ echo "Hello, world!" | toilet -f "DOS Rebel" | rtte --random-effect
 
 ---
 
-## Effects (37 total)
+## Effects
+
+<details>
+<summary>Show all effects</summary>
 
 | Effect | Description |
 |---|---|
@@ -68,6 +71,8 @@ echo "Hello, world!" | toilet -f "DOS Rebel" | rtte --random-effect
 | `vhstape` | VHS tape degradation effect |
 | `waves` | Wave motion ripples through the text |
 | `wipe` | Diagonal wipe reveals the text |
+
+</details>
 
 ---
 
@@ -143,7 +148,7 @@ cargo test
 Tests cover:
 - Core engine (grid creation, ANSI stripping)
 - Gradient and easing math
-- Convergence for all 37 effects (each must complete within a frame budget on a small grid)
+- Convergence for all effects (each must complete within a frame budget on a small grid)
 - Final state invariants (characters visible, content preserved)
 
 ---
