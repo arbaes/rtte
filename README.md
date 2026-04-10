@@ -173,9 +173,9 @@ cargo test
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+ [See LICENSE.md](LICENSE).
 
-Original TerminalTextEffects by [ChrisBuilds](https://github.com/ChrisBuilds/terminaltexteffects) is also MIT licensed. This project is a Rust reimplementation of that work.
+By respect for the original TerminalTextEffects project's [License](https://github.com/ChrisBuilds/terminaltexteffects/blob/main/LICENSE), which is also MIT licensed, this project is also under the MIT License.
 
 ---
 
