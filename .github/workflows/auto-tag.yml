@@ -1,10 +1,10 @@
 name: Auto Tag
 
-# When Cargo.toml changes on main, read the version and push a tag if it
+# When Cargo.toml changes on master, read the version and push a tag if it
 # doesn't exist yet. The tag push triggers release.yml automatically.
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - Cargo.toml
 
