@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Install dependencies
+        run: pacman -Syu --noconfirm --needed git base-devel rust cargo
+
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: arch-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: arch-cargo-
+
+      - name: Build (release)
+        run: cargo build --release --locked
+
+      - name: Run tests
+        run: cargo test --locked
+
+  lint:
+    name: Clippy & Format
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Install dependencies
+        run: pacman -Syu --noconfirm --needed git base-devel rust cargo
+
+      - uses: actions/checkout@v4
+
+      - name: Install rustfmt and clippy
+        run: rustup component add rustfmt clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: arch-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: arch-cargo-lint-
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all -- -D warnings
+
+      - name: Security audit
+        run: |
+          cargo install cargo-audit --quiet
+          cargo audit
