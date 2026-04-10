@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 rand = "0.8"
-crossterm = "0.28"
+crossterm = "0.29"
 unicode-width = "0.1"
 
 [profile.release]
