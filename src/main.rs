@@ -124,7 +124,5 @@ fn main() {
 
     let mut effect = (info.create)(&grid);
 
-    run_animation(&mut grid, cli.frame_rate, |grid, _frame| {
-        effect.tick(grid)
-    });
+    run_animation(&mut grid, cli.frame_rate, |grid, _frame| effect.tick(grid));
 }

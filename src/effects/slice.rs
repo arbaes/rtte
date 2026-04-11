@@ -2,7 +2,8 @@
 // Text split vertically, halves slide in from opposite edges with in_out_expo
 
 pub const NAME: &str = "slice";
-pub const DESCRIPTION: &str = "Slices the input in half and slides it into place from opposite directions.";
+pub const DESCRIPTION: &str =
+    "Slices the input in half and slides it into place from opposite directions.";
 
 use crate::easing;
 use crate::engine::Grid;

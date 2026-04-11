@@ -1,7 +1,8 @@
 // SynthGrid effect — grid expand, dissolve characters, grid collapse
 
 pub const NAME: &str = "synthgrid";
-pub const DESCRIPTION: &str = "Create a grid which fills with characters dissolving into the final text.";
+pub const DESCRIPTION: &str =
+    "Create a grid which fills with characters dissolving into the final text.";
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

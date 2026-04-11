@@ -1,7 +1,8 @@
 // VHSTape effect — glitch waves, snow noise, then redraw
 
 pub const NAME: &str = "vhstape";
-pub const DESCRIPTION: &str = "Lines of characters glitch left and right and lose detail like an old VHS tape.";
+pub const DESCRIPTION: &str =
+    "Lines of characters glitch left and right and lose detail like an old VHS tape.";
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
