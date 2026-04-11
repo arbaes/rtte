@@ -191,6 +191,58 @@ pub fn render_frame(
     out.flush().ok();
 }
 
+/// Run the animation loop
+pub fn run_animation<F>(grid: &mut Grid, frame_rate: u32, mut tick: F)
+where
+    F: FnMut(&mut Grid, usize) -> bool, // returns true when done
+{
+    let mut stdout = BufWriter::with_capacity(64 * 1024, io::stdout());
+
+    // Save cursor position — only query if both stdin and stdout are terminals
+    // (DSR sends escape to stdout but reads response from stdin, blocks on pipes)
+    let origin_row = if io::stdin().is_terminal() && io::stdout().is_terminal() {
+        cursor::position().map(|(_, y)| y).unwrap_or(0)
+    } else {
+        0
+    };
+
+    execute!(stdout, cursor::Hide).ok();
+
+    let term_width = terminal::size().map(|(w, _)| w).unwrap_or(80);
+    let frame_duration = Duration::from_micros(1_000_000 / frame_rate as u64);
+    let mut frame = 0;
+
+    loop {
+        let start = Instant::now();
+
+        let done = tick(grid, frame);
+        render_frame(grid, &mut stdout, origin_row, term_width);
+
+        if done {
+            break;
+        }
+
+        frame += 1;
+
+        let elapsed = start.elapsed();
+        if elapsed < frame_duration {
+            std::thread::sleep(frame_duration - elapsed);
+        }
+    }
+
+    // Final frame — the effect already set final colors, just ensure visibility
+    for row in &mut grid.cells {
+        for cell in row {
+            cell.visible = true;
+        }
+    }
+    render_frame(grid, &mut stdout, origin_row, term_width);
+
+    // Move cursor below the grid
+    queue!(stdout, cursor::MoveTo(0, origin_row + grid.height as u16)).ok();
+    execute!(stdout, cursor::Show).ok();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,56 +310,4 @@ mod tests {
         assert_eq!(g.height, 0);
         assert_eq!(g.width, 0);
     }
-}
-
-/// Run the animation loop
-pub fn run_animation<F>(grid: &mut Grid, frame_rate: u32, mut tick: F)
-where
-    F: FnMut(&mut Grid, usize) -> bool, // returns true when done
-{
-    let mut stdout = BufWriter::with_capacity(64 * 1024, io::stdout());
-
-    // Save cursor position — only query if both stdin and stdout are terminals
-    // (DSR sends escape to stdout but reads response from stdin, blocks on pipes)
-    let origin_row = if io::stdin().is_terminal() && io::stdout().is_terminal() {
-        cursor::position().map(|(_, y)| y).unwrap_or(0)
-    } else {
-        0
-    };
-
-    execute!(stdout, cursor::Hide).ok();
-
-    let term_width = terminal::size().map(|(w, _)| w).unwrap_or(80);
-    let frame_duration = Duration::from_micros(1_000_000 / frame_rate as u64);
-    let mut frame = 0;
-
-    loop {
-        let start = Instant::now();
-
-        let done = tick(grid, frame);
-        render_frame(grid, &mut stdout, origin_row, term_width);
-
-        if done {
-            break;
-        }
-
-        frame += 1;
-
-        let elapsed = start.elapsed();
-        if elapsed < frame_duration {
-            std::thread::sleep(frame_duration - elapsed);
-        }
-    }
-
-    // Final frame — the effect already set final colors, just ensure visibility
-    for row in &mut grid.cells {
-        for cell in row {
-            cell.visible = true;
-        }
-    }
-    render_frame(grid, &mut stdout, origin_row, term_width);
-
-    // Move cursor below the grid
-    queue!(stdout, cursor::MoveTo(0, origin_row + grid.height as u16)).ok();
-    execute!(stdout, cursor::Show).ok();
 }
