@@ -1,9 +1,9 @@
 // Wipe effect — faithful TTE reimplementation
 // Diagonal wipe revealing characters with gradient animation
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 
 struct WipeChar {
     y: usize,
@@ -21,7 +21,9 @@ struct WipeChar {
 
 impl WipeChar {
     fn tick(&mut self) {
-        if !self.active || self.done { return; }
+        if !self.active || self.done {
+            return;
+        }
         self.hold += 1;
         if self.hold >= self.frames_per_step {
             self.hold = 0;
@@ -52,7 +54,11 @@ impl WipeEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("833ab4"), Rgb::from_hex("fd1d1d"), Rgb::from_hex("fcb045")],
+            &[
+                Rgb::from_hex("833ab4"),
+                Rgb::from_hex("fd1d1d"),
+                Rgb::from_hex("fcb045"),
+            ],
             12,
         );
         let start_color = Rgb::from_hex("833ab4");
@@ -64,9 +70,8 @@ impl WipeEffect {
 
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 // Gradient: start_color → final_color (12 steps)
                 let steps = 12;
                 let mut colors = Vec::with_capacity(steps);
@@ -82,7 +87,8 @@ impl WipeEffect {
                 }
 
                 chars.push(WipeChar {
-                    y, x,
+                    y,
+                    x,
                     original_ch: grid.cells[y][x].ch,
                     final_color,
                     colors,
@@ -114,7 +120,9 @@ impl WipeEffect {
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         // Advance easer
         self.easer_step += self.easer_speed;
-        if self.easer_step > 1.0 { self.easer_step = 1.0; }
+        if self.easer_step > 1.0 {
+            self.easer_step = 1.0;
+        }
 
         let eased = easing::in_out_circ(self.easer_step);
         let target = (eased * self.total_groups as f64).round() as usize;
@@ -131,7 +139,9 @@ impl WipeEffect {
         let mut all_done = self.activated_up_to >= self.total_groups;
         for ch in &mut self.chars {
             ch.tick();
-            if ch.active && !ch.done { all_done = false; }
+            if ch.active && !ch.done {
+                all_done = false;
+            }
         }
 
         // Render

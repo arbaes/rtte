@@ -1,6 +1,5 @@
 /// Easing functions matching TTE's easing library.
 /// All functions take t in [0.0, 1.0] and return a value in [0.0, 1.0].
-
 use std::f64::consts::PI;
 
 pub fn linear(t: f64) -> f64 {
@@ -84,11 +83,19 @@ pub fn in_out_quint(t: f64) -> f64 {
 }
 
 pub fn in_expo(t: f64) -> f64 {
-    if t == 0.0 { 0.0 } else { (2.0_f64).powf(10.0 * t - 10.0) }
+    if t == 0.0 {
+        0.0
+    } else {
+        (2.0_f64).powf(10.0 * t - 10.0)
+    }
 }
 
 pub fn out_expo(t: f64) -> f64 {
-    if t == 1.0 { 1.0 } else { 1.0 - (2.0_f64).powf(-10.0 * t) }
+    if t == 1.0 {
+        1.0
+    } else {
+        1.0 - (2.0_f64).powf(-10.0 * t)
+    }
 }
 
 pub fn in_out_expo(t: f64) -> f64 {
@@ -203,16 +210,36 @@ mod tests {
     #[test]
     fn all_functions_at_zero_return_zero() {
         let fns: &[fn(f64) -> f64] = &[
-            linear, in_sine, out_sine, in_out_sine,
-            in_quad, out_quad, in_out_quad,
-            in_cubic, out_cubic, in_out_cubic,
-            in_quart, out_quart, in_out_quart,
-            in_quint, out_quint, in_out_quint,
-            in_expo, out_expo, in_out_expo,
-            in_circ, out_circ, in_out_circ,
-            in_back, out_back, in_out_back,
-            in_elastic, out_elastic,
-            in_bounce, out_bounce, in_out_bounce,
+            linear,
+            in_sine,
+            out_sine,
+            in_out_sine,
+            in_quad,
+            out_quad,
+            in_out_quad,
+            in_cubic,
+            out_cubic,
+            in_out_cubic,
+            in_quart,
+            out_quart,
+            in_out_quart,
+            in_quint,
+            out_quint,
+            in_out_quint,
+            in_expo,
+            out_expo,
+            in_out_expo,
+            in_circ,
+            out_circ,
+            in_out_circ,
+            in_back,
+            out_back,
+            in_out_back,
+            in_elastic,
+            out_elastic,
+            in_bounce,
+            out_bounce,
+            in_out_bounce,
         ];
         for f in fns {
             assert!(approx_eq(f(0.0), 0.0), "f(0) != 0 for {:?}", f as *const _);
@@ -222,19 +249,42 @@ mod tests {
     #[test]
     fn all_functions_at_one_return_one() {
         let fns: &[fn(f64) -> f64] = &[
-            linear, in_sine, out_sine, in_out_sine,
-            in_quad, out_quad, in_out_quad,
-            in_cubic, out_cubic, in_out_cubic,
-            in_quart, out_quart, in_out_quart,
-            in_quint, out_quint, in_out_quint,
-            in_expo, out_expo, in_out_expo,
-            in_circ, out_circ, in_out_circ,
-            in_elastic, out_elastic,
-            in_bounce, out_bounce, in_out_bounce,
+            linear,
+            in_sine,
+            out_sine,
+            in_out_sine,
+            in_quad,
+            out_quad,
+            in_out_quad,
+            in_cubic,
+            out_cubic,
+            in_out_cubic,
+            in_quart,
+            out_quart,
+            in_out_quart,
+            in_quint,
+            out_quint,
+            in_out_quint,
+            in_expo,
+            out_expo,
+            in_out_expo,
+            in_circ,
+            out_circ,
+            in_out_circ,
+            in_elastic,
+            out_elastic,
+            in_bounce,
+            out_bounce,
+            in_out_bounce,
         ];
         for f in fns {
             let v = f(1.0);
-            assert!((v - 1.0).abs() < 1e-6, "f(1) = {} (not 1) for {:?}", v, f as *const _);
+            assert!(
+                (v - 1.0).abs() < 1e-6,
+                "f(1) = {} (not 1) for {:?}",
+                v,
+                f as *const _
+            );
         }
     }
 
@@ -249,13 +299,23 @@ mod tests {
     fn in_out_functions_are_symmetric_at_half() {
         // in_out variants should return 0.5 at t=0.5 (symmetric S-curve)
         let symmetric: &[fn(f64) -> f64] = &[
-            in_out_sine, in_out_quad, in_out_cubic,
-            in_out_quart, in_out_quint, in_out_expo,
-            in_out_circ, in_out_bounce,
+            in_out_sine,
+            in_out_quad,
+            in_out_cubic,
+            in_out_quart,
+            in_out_quint,
+            in_out_expo,
+            in_out_circ,
+            in_out_bounce,
         ];
         for f in symmetric {
             let v = f(0.5);
-            assert!((v - 0.5).abs() < 0.01, "in_out f(0.5) = {} for {:?}", v, f as *const _);
+            assert!(
+                (v - 0.5).abs() < 0.01,
+                "in_out f(0.5) = {} for {:?}",
+                v,
+                f as *const _
+            );
         }
     }
 

@@ -1,18 +1,38 @@
 // Sweep effect — faithful TTE reimplementation
 // Two-phase sweep: initial gray shimmer R→L, then color sweep L→R
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 const SWEEP_SYMBOLS: [char; 4] = ['█', '▓', '▒', '░'];
 const GRAY_SHADES: [Rgb; 5] = [
-    Rgb { r: 160, g: 160, b: 160 },
-    Rgb { r: 128, g: 128, b: 128 },
-    Rgb { r: 64, g: 64, b: 64 },
-    Rgb { r: 32, g: 32, b: 32 },
-    Rgb { r: 16, g: 16, b: 16 },
+    Rgb {
+        r: 160,
+        g: 160,
+        b: 160,
+    },
+    Rgb {
+        r: 128,
+        g: 128,
+        b: 128,
+    },
+    Rgb {
+        r: 64,
+        g: 64,
+        b: 64,
+    },
+    Rgb {
+        r: 32,
+        g: 32,
+        b: 32,
+    },
+    Rgb {
+        r: 16,
+        g: 16,
+        b: 16,
+    },
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -62,7 +82,11 @@ impl SweepEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             8,
         );
 
@@ -76,9 +100,8 @@ impl SweepEffect {
 
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 let gray_idx = rng.gen_range(0..GRAY_SHADES.len());
 
                 let idx = chars.len();
@@ -89,7 +112,8 @@ impl SweepEffect {
                 groups_p2[x].push(idx);
 
                 chars.push(SweepChar {
-                    y, x,
+                    y,
+                    x,
                     original_ch: grid.cells[y][x].ch,
                     final_color,
                     phase: Phase::InitialSweep,
@@ -131,7 +155,9 @@ impl SweepEffect {
 
         // Advance easer and activate groups
         self.easer_step += self.easer_speed;
-        if self.easer_step > 1.0 { self.easer_step = 1.0; }
+        if self.easer_step > 1.0 {
+            self.easer_step = 1.0;
+        }
 
         let eased = easing::in_out_circ(self.easer_step);
         let target = (eased * self.total_groups as f64).round() as usize;
@@ -224,7 +250,9 @@ impl SweepEffect {
 
         // Render
         for ch in &self.chars {
-            if ch.y >= grid.height || ch.x >= grid.width { continue; }
+            if ch.y >= grid.height || ch.x >= grid.width {
+                continue;
+            }
             let cell = &mut grid.cells[ch.y][ch.x];
 
             match self.phase {
@@ -249,7 +277,10 @@ impl SweepEffect {
                         } else {
                             cell.ch = SWEEP_SYMBOLS[ch.frame_idx];
                             let t = ch.frame_idx as f64 / SWEEP_SYMBOLS.len() as f64;
-                            cell.fg = Some(Rgb::lerp(Rgb::new(128, 128, 128), ch.final_color, t).to_crossterm());
+                            cell.fg = Some(
+                                Rgb::lerp(Rgb::new(128, 128, 128), ch.final_color, t)
+                                    .to_crossterm(),
+                            );
                         }
                     } else {
                         cell.ch = ch.original_ch;

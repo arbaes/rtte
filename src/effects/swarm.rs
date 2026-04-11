@@ -1,33 +1,45 @@
 // Swarm effect — grouped swarm movement through areas before settling
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
-use rand::Rng;
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
+use rand::Rng;
 
 struct SwarmChar {
-    final_y: usize, final_x: usize, cur_y: f64, cur_x: f64, original_ch: char,
-    final_color: Rgb, swarm_idx: usize, progress: f64, speed: f64, done: bool,
+    final_y: usize,
+    final_x: usize,
+    cur_y: f64,
+    cur_x: f64,
+    original_ch: char,
+    final_color: Rgb,
+    swarm_idx: usize,
+    progress: f64,
+    speed: f64,
+    done: bool,
 }
 
 struct SwarmGroup {
     targets: Vec<(f64, f64)>, // waypoints
-    target_idx: usize, progress: f64, speed: f64,
-    cur_y: f64, cur_x: f64, settling: bool,
+    target_idx: usize,
+    progress: f64,
+    speed: f64,
+    cur_y: f64,
+    cur_x: f64,
+    settling: bool,
 }
 
 pub struct SwarmEffect {
     chars: Vec<SwarmChar>,
     swarms: Vec<SwarmGroup>,
-    dm: usize, width: usize, height: usize,
+    dm: usize,
+    width: usize,
+    height: usize,
 }
 
 impl SwarmEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height, dm) = (grid.width, grid.height, 2usize);
-        let final_gradient = Gradient::new(
-            &[Rgb::from_hex("31b900"), Rgb::from_hex("f0ff65")], 12,
-        );
+        let final_gradient = Gradient::new(&[Rgb::from_hex("31b900"), Rgb::from_hex("f0ff65")], 12);
         let mut rng = rand::thread_rng();
         let total = width * height;
         let swarm_size = ((total as f64 * 0.1) as usize).max(1);
@@ -36,13 +48,29 @@ impl SwarmEffect {
         let mut indices: Vec<usize> = (0..total).collect();
         indices.shuffle(&mut rng);
 
-        for y in 0..height { for x in 0..width {
-            let fc = final_gradient.color_at_coord(y, x, height, width, GradientDirection::Horizontal);
-            chars.push(SwarmChar {
-                final_y: y, final_x: x, cur_y: 0.0, cur_x: 0.0, original_ch: grid.cells[y][x].ch,
-                final_color: fc, swarm_idx: 0, progress: 0.0, speed: 0.0, done: false,
-            });
-        }}
+        for y in 0..height {
+            for x in 0..width {
+                let fc = final_gradient.color_at_coord(
+                    y,
+                    x,
+                    height,
+                    width,
+                    GradientDirection::Horizontal,
+                );
+                chars.push(SwarmChar {
+                    final_y: y,
+                    final_x: x,
+                    cur_y: 0.0,
+                    cur_x: 0.0,
+                    original_ch: grid.cells[y][x].ch,
+                    final_color: fc,
+                    swarm_idx: 0,
+                    progress: 0.0,
+                    speed: 0.0,
+                    done: false,
+                });
+            }
+        }
 
         let mut swarms = Vec::new();
         let mut pos = 0;
@@ -67,21 +95,34 @@ impl SwarmEffect {
             }
 
             swarms.push(SwarmGroup {
-                targets, target_idx: 0, progress: 0.0,
-                speed: 0.4 / dm as f64, cur_y: start_y, cur_x: start_x, settling: false,
+                targets,
+                target_idx: 0,
+                progress: 0.0,
+                speed: 0.4 / dm as f64,
+                cur_y: start_y,
+                cur_x: start_x,
+                settling: false,
             });
             swarm_id += 1;
             pos += size;
         }
 
-        SwarmEffect { chars, swarms, dm, width, height }
+        SwarmEffect {
+            chars,
+            swarms,
+            dm,
+            width,
+            height,
+        }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         let dm = self.dm;
         // Move swarm groups through waypoints
         for sg in &mut self.swarms {
-            if sg.settling { continue; }
+            if sg.settling {
+                continue;
+            }
             if sg.target_idx >= sg.targets.len() {
                 sg.settling = true;
                 continue;
@@ -99,12 +140,23 @@ impl SwarmEffect {
 
         let mut all_done = true;
         for ch in &mut self.chars {
-            if ch.done { continue; }
+            if ch.done {
+                continue;
+            }
             let sg = &self.swarms[ch.swarm_idx];
             if sg.settling {
-                ch.progress += 0.45 / ((ch.final_y as f64 - ch.cur_y).powi(2) + (ch.final_x as f64 - ch.cur_x).powi(2)).sqrt().max(1.0) / dm as f64;
-                if ch.progress >= 1.0 { ch.progress = 1.0; ch.done = true; }
-                let start_y = sg.cur_y; let start_x = sg.cur_x;
+                ch.progress += 0.45
+                    / ((ch.final_y as f64 - ch.cur_y).powi(2)
+                        + (ch.final_x as f64 - ch.cur_x).powi(2))
+                    .sqrt()
+                    .max(1.0)
+                    / dm as f64;
+                if ch.progress >= 1.0 {
+                    ch.progress = 1.0;
+                    ch.done = true;
+                }
+                let start_y = sg.cur_y;
+                let start_x = sg.cur_x;
                 let eased = easing::in_out_quad(ch.progress);
                 ch.cur_y = start_y + (ch.final_y as f64 - start_y) * eased;
                 ch.cur_x = start_x + (ch.final_x as f64 - start_x) * eased;
@@ -112,20 +164,32 @@ impl SwarmEffect {
                 ch.cur_y = sg.cur_y + (rand::thread_rng().gen_range(-1.0..1.0));
                 ch.cur_x = sg.cur_x + (rand::thread_rng().gen_range(-1.0..1.0));
             }
-            if !ch.done { all_done = false; }
+            if !ch.done {
+                all_done = false;
+            }
         }
 
-        for row in &mut grid.cells { for cell in row { cell.visible = false; } }
+        for row in &mut grid.cells {
+            for cell in row {
+                cell.visible = false;
+            }
+        }
         let base_color = Rgb::from_hex("31a0d4");
         let flash_color = Rgb::from_hex("f2ea79");
 
         for ch in &self.chars {
-            let ry = ch.cur_y.round() as isize; let rx = ch.cur_x.round() as isize;
-            if ry < 0 || rx < 0 { continue; }
+            let ry = ch.cur_y.round() as isize;
+            let rx = ch.cur_x.round() as isize;
+            if ry < 0 || rx < 0 {
+                continue;
+            }
             let (ry, rx) = (ry as usize, rx as usize);
-            if ry >= self.height || rx >= self.width { continue; }
+            if ry >= self.height || rx >= self.width {
+                continue;
+            }
             let cell = &mut grid.cells[ry][rx];
-            cell.visible = true; cell.ch = ch.original_ch;
+            cell.visible = true;
+            cell.ch = ch.original_ch;
             if ch.done {
                 cell.fg = Some(ch.final_color.to_crossterm());
             } else if self.swarms[ch.swarm_idx].settling {

@@ -1,22 +1,28 @@
 // SynthGrid effect — grid expand, dissolve characters, grid collapse
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
-use rand::Rng;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
+use rand::Rng;
 
 #[derive(Clone, Copy, PartialEq)]
-enum Phase { GridExpand, AddChars, GridCollapse, Done }
+enum Phase {
+    GridExpand,
+    AddChars,
+    GridCollapse,
+    Done,
+}
 
 struct GridLine {
     is_row: bool,
-    pos: usize,       // row or column index
-    extent: usize,    // how far the line has extended
+    pos: usize,    // row or column index
+    extent: usize, // how far the line has extended
     max_extent: usize,
     color: Rgb,
 }
 
 struct SynthChar {
-    y: usize, x: usize,
+    y: usize,
+    x: usize,
     original_ch: char,
     final_color: Rgb,
     dissolve_frames: Vec<(char, Rgb)>,
@@ -31,7 +37,8 @@ pub struct SynthGridEffect {
     phase: Phase,
     frame: usize,
     dm: usize,
-    width: usize, height: usize,
+    width: usize,
+    height: usize,
     max_active_blocks: usize,
     pending: Vec<usize>,
     expand_speed: usize,
@@ -43,11 +50,14 @@ impl SynthGridEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height, dm) = (grid.width, grid.height, 2usize);
         let text_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")], 12,
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
+            12,
         );
-        let grid_gradient = Gradient::new(
-            &[Rgb::from_hex("CC00CC"), Rgb::from_hex("ffffff")], 12,
-        );
+        let grid_gradient = Gradient::new(&[Rgb::from_hex("CC00CC"), Rgb::from_hex("ffffff")], 12);
 
         let mut rng = rand::thread_rng();
         let dissolve_symbols = ['░', '▒', '▓'];
@@ -63,7 +73,11 @@ impl SynthGridEffect {
         while y < height {
             let gc = grid_gradient.color_at_coord(y, 0, height, width, GradientDirection::Diagonal);
             grid_lines.push(GridLine {
-                is_row: true, pos: y, extent: 0, max_extent: width, color: gc,
+                is_row: true,
+                pos: y,
+                extent: 0,
+                max_extent: width,
+                color: gc,
             });
             y += row_gap;
         }
@@ -72,31 +86,50 @@ impl SynthGridEffect {
         while x < width {
             let gc = grid_gradient.color_at_coord(0, x, height, width, GradientDirection::Diagonal);
             grid_lines.push(GridLine {
-                is_row: false, pos: x, extent: 0, max_extent: height, color: gc,
+                is_row: false,
+                pos: x,
+                extent: 0,
+                max_extent: height,
+                color: gc,
             });
             x += col_gap;
         }
 
         // Create chars with dissolve animations
         let mut chars = Vec::new();
-        for y in 0..height { for x in 0..width {
-            let fc = text_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
-            let num_dissolve = rng.gen_range(15..=30);
-            let mut dissolve_frames = Vec::new();
-            for i in 0..num_dissolve {
-                let sym = dissolve_symbols[rng.gen_range(0..3)];
-                let t = i as f64 / num_dissolve as f64;
-                let gc = grid_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
-                let color = Rgb::lerp(gc, fc, t);
-                dissolve_frames.push((sym, color));
-            }
-            dissolve_frames.push((grid.cells[y][x].ch, fc));
+        for y in 0..height {
+            for x in 0..width {
+                let fc =
+                    text_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
+                let num_dissolve = rng.gen_range(15..=30);
+                let mut dissolve_frames = Vec::new();
+                for i in 0..num_dissolve {
+                    let sym = dissolve_symbols[rng.gen_range(0..3)];
+                    let t = i as f64 / num_dissolve as f64;
+                    let gc = grid_gradient.color_at_coord(
+                        y,
+                        x,
+                        height,
+                        width,
+                        GradientDirection::Diagonal,
+                    );
+                    let color = Rgb::lerp(gc, fc, t);
+                    dissolve_frames.push((sym, color));
+                }
+                dissolve_frames.push((grid.cells[y][x].ch, fc));
 
-            chars.push(SynthChar {
-                y, x, original_ch: grid.cells[y][x].ch, final_color: fc,
-                dissolve_frames, dissolve_idx: 0, active: false, done: false,
-            });
-        }}
+                chars.push(SynthChar {
+                    y,
+                    x,
+                    original_ch: grid.cells[y][x].ch,
+                    final_color: fc,
+                    dissolve_frames,
+                    dissolve_idx: 0,
+                    active: false,
+                    done: false,
+                });
+            }
+        }
 
         let total = chars.len();
         let max_active = (total as f64 * 0.1).max(1.0) as usize;
@@ -104,8 +137,17 @@ impl SynthGridEffect {
         pending.shuffle(&mut rng);
 
         SynthGridEffect {
-            grid_lines, chars, phase: Phase::GridExpand, frame: 0, dm, width, height,
-            max_active_blocks: max_active, pending, expand_speed: 3, collapse_idx: 0,
+            grid_lines,
+            chars,
+            phase: Phase::GridExpand,
+            frame: 0,
+            dm,
+            width,
+            height,
+            max_active_blocks: max_active,
+            pending,
+            expand_speed: 3,
+            collapse_idx: 0,
             grid_gradient,
         }
     }
@@ -123,7 +165,9 @@ impl SynthGridEffect {
                         all_done = false;
                     }
                 }
-                if all_done { self.phase = Phase::AddChars; }
+                if all_done {
+                    self.phase = Phase::AddChars;
+                }
             }
             Phase::AddChars => {
                 // Activate new chars
@@ -161,17 +205,25 @@ impl SynthGridEffect {
                         all_collapsed = false;
                     }
                 }
-                if all_collapsed { self.phase = Phase::Done; }
+                if all_collapsed {
+                    self.phase = Phase::Done;
+                }
             }
             Phase::Done => return true,
         }
 
         // Render
-        for row in &mut grid.cells { for cell in row { cell.visible = false; } }
+        for row in &mut grid.cells {
+            for cell in row {
+                cell.visible = false;
+            }
+        }
 
         // Draw grid lines
         for gl in &self.grid_lines {
-            if gl.extent == 0 { continue; }
+            if gl.extent == 0 {
+                continue;
+            }
             if gl.is_row {
                 for x in 0..gl.extent.min(self.width) {
                     let cell = &mut grid.cells[gl.pos.min(self.height - 1)][x];
@@ -191,8 +243,11 @@ impl SynthGridEffect {
 
         // Draw chars (on top of grid)
         for ch in &self.chars {
-            if !ch.active { continue; }
-            let (sym, color) = ch.dissolve_frames[ch.dissolve_idx.min(ch.dissolve_frames.len() - 1)];
+            if !ch.active {
+                continue;
+            }
+            let (sym, color) =
+                ch.dissolve_frames[ch.dissolve_idx.min(ch.dissolve_frames.len() - 1)];
             let cell = &mut grid.cells[ch.y][ch.x];
             cell.visible = true;
             cell.ch = sym;

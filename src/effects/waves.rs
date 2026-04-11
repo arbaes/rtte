@@ -1,9 +1,9 @@
 // Waves effect — faithful TTE reimplementation
 // Wave symbols cascade across characters with gradient, then settle to final color
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 
 const WAVE_SYMBOLS: [char; 15] = [
     '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█', '▇', '▆', '▅', '▄', '▃', '▂', '▁',
@@ -47,12 +47,21 @@ impl WavesEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("ffb102"), Rgb::from_hex("31a0d4"), Rgb::from_hex("f0ff65")],
+            &[
+                Rgb::from_hex("ffb102"),
+                Rgb::from_hex("31a0d4"),
+                Rgb::from_hex("f0ff65"),
+            ],
             12,
         );
         let wave_gradient = Gradient::new(
-            &[Rgb::from_hex("f0ff65"), Rgb::from_hex("ffb102"), Rgb::from_hex("31a0d4"),
-              Rgb::from_hex("ffb102"), Rgb::from_hex("f0ff65")],
+            &[
+                Rgb::from_hex("f0ff65"),
+                Rgb::from_hex("ffb102"),
+                Rgb::from_hex("31a0d4"),
+                Rgb::from_hex("ffb102"),
+                Rgb::from_hex("f0ff65"),
+            ],
             6,
         );
 
@@ -66,14 +75,14 @@ impl WavesEffect {
 
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Diagonal,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
                 let idx = chars.len();
                 groups[x].push(idx);
 
                 chars.push(WaveChar {
-                    y, x,
+                    y,
+                    x,
                     original_ch: grid.cells[y][x].ch,
                     final_color,
                     wave_frame: 0,
@@ -110,7 +119,9 @@ impl WavesEffect {
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         // Activate groups
         self.easer_step += self.easer_speed;
-        if self.easer_step > 1.0 { self.easer_step = 1.0; }
+        if self.easer_step > 1.0 {
+            self.easer_step = 1.0;
+        }
         let eased = easing::in_out_sine(self.easer_step);
         let target = (eased * self.total_groups as f64).round() as usize;
         let target = target.min(self.total_groups);
@@ -138,14 +149,18 @@ impl WavesEffect {
                     ch.final_done = true;
                 }
             }
-            if !ch.final_done { all_done = false; }
+            if !ch.final_done {
+                all_done = false;
+            }
         }
 
         // Render
         let spec_len = self.wave_gradient.spectrum().len().max(1);
 
         for ch in &self.chars {
-            if ch.y >= grid.height || ch.x >= grid.width { continue; }
+            if ch.y >= grid.height || ch.x >= grid.width {
+                continue;
+            }
             let cell = &mut grid.cells[ch.y][ch.x];
 
             if ch.final_done {

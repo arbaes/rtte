@@ -1,9 +1,9 @@
 // Slice effect — faithful TTE reimplementation
 // Text split vertically, halves slide in from opposite edges with in_out_expo
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 
 struct SliceChar {
     final_y: usize,
@@ -30,7 +30,11 @@ impl SliceEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             12,
         );
 
@@ -41,9 +45,8 @@ impl SliceEffect {
 
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Diagonal,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
                 // Left half slides from top, right half slides from bottom
                 let start_y = if x < center_col {
                     -(height as f64)
@@ -67,14 +70,20 @@ impl SliceEffect {
             }
         }
 
-        SliceEffect { chars, width, height }
+        SliceEffect {
+            chars,
+            width,
+            height,
+        }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         let mut all_done = true;
 
         for ch in &mut self.chars {
-            if ch.done { continue; }
+            if ch.done {
+                continue;
+            }
             ch.progress += ch.speed;
             if ch.progress >= 1.0 {
                 ch.progress = 1.0;
@@ -82,7 +91,9 @@ impl SliceEffect {
             }
             let eased = easing::in_out_expo(ch.progress);
             ch.cur_y = ch.start_y + (ch.final_y as f64 - ch.start_y) * eased;
-            if !ch.done { all_done = false; }
+            if !ch.done {
+                all_done = false;
+            }
         }
 
         // Render

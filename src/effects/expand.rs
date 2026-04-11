@@ -1,9 +1,9 @@
 // Expand effect — faithful TTE reimplementation
 // Characters expand from center to positions with gradient animation
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 
 struct ExpandChar {
     final_y: usize,
@@ -32,7 +32,11 @@ impl ExpandEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             12,
         );
 
@@ -43,10 +47,11 @@ impl ExpandEffect {
         let mut chars = Vec::with_capacity(width * height);
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
-                let dist = ((y as f64 - center_y).powi(2) + (x as f64 - center_x).powi(2)).sqrt().max(1.0);
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
+                let dist = ((y as f64 - center_y).powi(2) + (x as f64 - center_x).powi(2))
+                    .sqrt()
+                    .max(1.0);
                 let speed = (movement_speed / dist) / dm as f64;
 
                 chars.push(ExpandChar {
@@ -63,14 +68,22 @@ impl ExpandEffect {
             }
         }
 
-        ExpandEffect { chars, center_y, center_x, width, height }
+        ExpandEffect {
+            chars,
+            center_y,
+            center_x,
+            width,
+            height,
+        }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         let mut all_done = true;
 
         for ch in &mut self.chars {
-            if ch.done { continue; }
+            if ch.done {
+                continue;
+            }
             ch.progress += ch.speed;
             if ch.progress >= 1.0 {
                 ch.progress = 1.0;
@@ -79,20 +92,28 @@ impl ExpandEffect {
             let eased = easing::in_out_quart(ch.progress);
             ch.cur_y = self.center_y + (ch.final_y as f64 - self.center_y) * eased;
             ch.cur_x = self.center_x + (ch.final_x as f64 - self.center_x) * eased;
-            if !ch.done { all_done = false; }
+            if !ch.done {
+                all_done = false;
+            }
         }
 
         // Render
         for row in &mut grid.cells {
-            for cell in row { cell.visible = false; }
+            for cell in row {
+                cell.visible = false;
+            }
         }
 
         for ch in &self.chars {
             let ry = ch.cur_y.round() as isize;
             let rx = ch.cur_x.round() as isize;
-            if ry < 0 || rx < 0 { continue; }
+            if ry < 0 || rx < 0 {
+                continue;
+            }
             let (ry, rx) = (ry as usize, rx as usize);
-            if ry >= self.height || rx >= self.width { continue; }
+            if ry >= self.height || rx >= self.width {
+                continue;
+            }
             let cell = &mut grid.cells[ry][rx];
             cell.visible = true;
             cell.ch = ch.original_ch;

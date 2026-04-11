@@ -1,30 +1,50 @@
 // Thunderstorm effect — rain + lightning strikes + sparks, then reveal
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 #[derive(Clone, Copy, PartialEq)]
-enum Phase { PreStorm, Storm, PostStorm, Done }
+enum Phase {
+    PreStorm,
+    Storm,
+    PostStorm,
+    Done,
+}
 
 struct Raindrop {
-    y: f64, x: f64, speed: f64, symbol: char, active: bool,
+    y: f64,
+    x: f64,
+    speed: f64,
+    symbol: char,
+    active: bool,
 }
 
 struct LightningSegment {
-    y: usize, x: usize, symbol: char, life: usize,
+    y: usize,
+    x: usize,
+    symbol: char,
+    life: usize,
 }
 
 struct Spark {
-    y: f64, x: f64, target_y: f64, target_x: f64,
-    progress: f64, speed: f64, symbol: char, life: usize, active: bool,
+    y: f64,
+    x: f64,
+    target_y: f64,
+    target_x: f64,
+    progress: f64,
+    speed: f64,
+    symbol: char,
+    life: usize,
+    active: bool,
 }
 
 pub struct ThunderstormEffect {
     phase: Phase,
     frame: usize,
     dm: usize,
-    width: usize, height: usize,
+    width: usize,
+    height: usize,
     rain: Vec<Raindrop>,
     lightning: Vec<LightningSegment>,
     sparks: Vec<Spark>,
@@ -46,7 +66,12 @@ impl ThunderstormEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height, dm) = (grid.width, grid.height, 2usize);
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")], 12,
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
+            12,
         );
 
         let mut original = Vec::new();
@@ -56,15 +81,27 @@ impl ThunderstormEffect {
         }
 
         ThunderstormEffect {
-            phase: Phase::PreStorm, frame: 0, dm, width, height,
-            rain: Vec::new(), lightning: Vec::new(), sparks: Vec::new(),
+            phase: Phase::PreStorm,
+            frame: 0,
+            dm,
+            width,
+            height,
+            rain: Vec::new(),
+            lightning: Vec::new(),
+            sparks: Vec::new(),
             storm_time: 12 * 60 * dm, // 12 seconds
-            fade_progress: 0.0, unfade_progress: 0.0,
-            rain_delay: 0, original,
+            fade_progress: 0.0,
+            unfade_progress: 0.0,
+            rain_delay: 0,
+            original,
             flash_frames: 0,
             final_gradient,
             lightning_color: Rgb::from_hex("68A3E8"),
-            storm_color: Rgb { r: 20, g: 20, b: 30 },
+            storm_color: Rgb {
+                r: 20,
+                g: 20,
+                b: 30,
+            },
             glow_color: Rgb::from_hex("EF5411"),
             spark_color: Rgb::from_hex("ff4d00"),
             reveal_row: 0,
@@ -85,14 +122,22 @@ impl ThunderstormEffect {
                     self.frame = 0;
                 }
                 // Render: fade text to storm color
-                for y in 0..self.height { for x in 0..self.width {
-                    let cell = &mut grid.cells[y][x];
-                    cell.visible = true;
-                    cell.ch = self.original[y][x];
-                    let fc = self.final_gradient.color_at_coord(y, x, self.height, self.width, GradientDirection::Vertical);
-                    let color = Rgb::lerp(fc, self.storm_color, self.fade_progress);
-                    cell.fg = Some(color.to_crossterm());
-                }}
+                for y in 0..self.height {
+                    for x in 0..self.width {
+                        let cell = &mut grid.cells[y][x];
+                        cell.visible = true;
+                        cell.ch = self.original[y][x];
+                        let fc = self.final_gradient.color_at_coord(
+                            y,
+                            x,
+                            self.height,
+                            self.width,
+                            GradientDirection::Vertical,
+                        );
+                        let color = Rgb::lerp(fc, self.storm_color, self.fade_progress);
+                        cell.fg = Some(color.to_crossterm());
+                    }
+                }
                 return false;
             }
             Phase::Storm => {
@@ -115,10 +160,14 @@ impl ThunderstormEffect {
 
                 // Move rain
                 for drop in &mut self.rain {
-                    if !drop.active { continue; }
+                    if !drop.active {
+                        continue;
+                    }
                     drop.y += drop.speed;
                     drop.x -= 0.3; // slight wind
-                    if drop.y >= self.height as f64 { drop.active = false; }
+                    if drop.y >= self.height as f64 {
+                        drop.active = false;
+                    }
                 }
                 self.rain.retain(|d| d.active);
 
@@ -131,12 +180,23 @@ impl ThunderstormEffect {
                     while cy < self.height {
                         let sym = strike_symbols[rng.gen_range(0..3)];
                         self.lightning.push(LightningSegment {
-                            y: cy, x: cx, symbol: sym, life: 6 * dm,
+                            y: cy,
+                            x: cx,
+                            symbol: sym,
+                            life: 6 * dm,
                         });
                         cy += 1;
                         match sym {
-                            '/' => { if cx > 0 { cx -= 1; } }
-                            '\\' => { if cx + 1 < self.width { cx += 1; } }
+                            '/' => {
+                                if cx > 0 {
+                                    cx -= 1;
+                                }
+                            }
+                            '\\' => {
+                                if cx + 1 < self.width {
+                                    cx += 1;
+                                }
+                            }
                             _ => {}
                         }
                         // Branch chance
@@ -144,15 +204,28 @@ impl ThunderstormEffect {
                             let mut bx = cx;
                             let mut by = cy;
                             for _ in 0..rng.gen_range(2..6) {
-                                if by >= self.height { break; }
+                                if by >= self.height {
+                                    break;
+                                }
                                 let bsym = strike_symbols[rng.gen_range(0..3)];
                                 self.lightning.push(LightningSegment {
-                                    y: by, x: bx, symbol: bsym, life: 4 * dm,
+                                    y: by,
+                                    x: bx,
+                                    symbol: bsym,
+                                    life: 4 * dm,
                                 });
                                 by += 1;
                                 match bsym {
-                                    '/' => { if bx > 0 { bx -= 1; } }
-                                    '\\' => { if bx + 1 < self.width { bx += 1; } }
+                                    '/' => {
+                                        if bx > 0 {
+                                            bx -= 1;
+                                        }
+                                    }
+                                    '\\' => {
+                                        if bx + 1 < self.width {
+                                            bx += 1;
+                                        }
+                                    }
                                     _ => {}
                                 }
                             }
@@ -179,17 +252,25 @@ impl ThunderstormEffect {
                 }
 
                 // Update lightning
-                for seg in &mut self.lightning { seg.life = seg.life.saturating_sub(1); }
+                for seg in &mut self.lightning {
+                    seg.life = seg.life.saturating_sub(1);
+                }
                 self.lightning.retain(|s| s.life > 0);
                 self.flash_frames = self.flash_frames.saturating_sub(1);
 
                 // Update sparks
                 for spark in &mut self.sparks {
-                    if !spark.active { continue; }
+                    if !spark.active {
+                        continue;
+                    }
                     spark.progress += spark.speed;
-                    if spark.progress >= 1.0 { spark.progress = 1.0; }
+                    if spark.progress >= 1.0 {
+                        spark.progress = 1.0;
+                    }
                     spark.life = spark.life.saturating_sub(1);
-                    if spark.life == 0 { spark.active = false; }
+                    if spark.life == 0 {
+                        spark.active = false;
+                    }
                 }
                 self.sparks.retain(|s| s.active);
 
@@ -199,13 +280,23 @@ impl ThunderstormEffect {
                 }
 
                 // Render storm
-                let bg = if self.flash_frames > 0 { Rgb { r: 60, g: 60, b: 80 } } else { self.storm_color };
-                for y in 0..self.height { for x in 0..self.width {
-                    let cell = &mut grid.cells[y][x];
-                    cell.visible = true;
-                    cell.ch = self.original[y][x];
-                    cell.fg = Some(bg.to_crossterm());
-                }}
+                let bg = if self.flash_frames > 0 {
+                    Rgb {
+                        r: 60,
+                        g: 60,
+                        b: 80,
+                    }
+                } else {
+                    self.storm_color
+                };
+                for y in 0..self.height {
+                    for x in 0..self.width {
+                        let cell = &mut grid.cells[y][x];
+                        cell.visible = true;
+                        cell.ch = self.original[y][x];
+                        cell.fg = Some(bg.to_crossterm());
+                    }
+                }
 
                 // Draw rain
                 for drop in &self.rain {
@@ -214,7 +305,14 @@ impl ThunderstormEffect {
                     if ry < self.height && rx < self.width {
                         let cell = &mut grid.cells[ry][rx];
                         cell.ch = drop.symbol;
-                        cell.fg = Some(Rgb { r: 100, g: 120, b: 180 }.to_crossterm());
+                        cell.fg = Some(
+                            Rgb {
+                                r: 100,
+                                g: 120,
+                                b: 180,
+                            }
+                            .to_crossterm(),
+                        );
                     }
                 }
 
@@ -252,14 +350,22 @@ impl ThunderstormEffect {
                     self.unfade_progress = 1.0;
                     self.phase = Phase::Done;
                 }
-                for y in 0..self.height { for x in 0..self.width {
-                    let cell = &mut grid.cells[y][x];
-                    cell.visible = true;
-                    cell.ch = self.original[y][x];
-                    let fc = self.final_gradient.color_at_coord(y, x, self.height, self.width, GradientDirection::Vertical);
-                    let color = Rgb::lerp(self.storm_color, fc, self.unfade_progress);
-                    cell.fg = Some(color.to_crossterm());
-                }}
+                for y in 0..self.height {
+                    for x in 0..self.width {
+                        let cell = &mut grid.cells[y][x];
+                        cell.visible = true;
+                        cell.ch = self.original[y][x];
+                        let fc = self.final_gradient.color_at_coord(
+                            y,
+                            x,
+                            self.height,
+                            self.width,
+                            GradientDirection::Vertical,
+                        );
+                        let color = Rgb::lerp(self.storm_color, fc, self.unfade_progress);
+                        cell.fg = Some(color.to_crossterm());
+                    }
+                }
                 return false;
             }
             Phase::Done => return true,

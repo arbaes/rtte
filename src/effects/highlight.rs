@@ -4,9 +4,9 @@
 // across text. Each character brightens then dims as the beam passes.
 // Characters are visible at their final gradient color throughout.
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 
 struct CharHighlight {
     y: usize,
@@ -49,12 +49,12 @@ impl CharHighlight {
 pub struct HighlightEffect {
     chars: Vec<CharHighlight>,
     // Diagonal groups: chars sorted by (x + y) diagonal index
-    groups: Vec<Vec<usize>>,  // group_idx → list of char indices
+    groups: Vec<Vec<usize>>, // group_idx → list of char indices
     // Easer state
     total_groups: usize,
     easer_step: f64,
     easer_speed: f64,
-    activated_up_to: usize,   // how many groups have been activated
+    activated_up_to: usize, // how many groups have been activated
     width: usize,
     height: usize,
 }
@@ -70,7 +70,11 @@ impl HighlightEffect {
         let frames_per_tick = 2 * dm;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             12,
         );
 
@@ -82,9 +86,8 @@ impl HighlightEffect {
 
         for y in 0..height {
             for x in 0..width {
-                let base_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let base_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
 
                 // Build highlight gradient: base → bright → bright → base
                 // with steps=(3, highlight_width, 3)

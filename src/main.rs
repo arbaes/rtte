@@ -1,23 +1,54 @@
-mod engine;
-mod effects;
-mod easing;
-mod gradient;
 mod charstate;
+mod easing;
+mod effects;
+mod engine;
+mod gradient;
 #[cfg(test)]
 mod tests;
 
 use clap::Parser;
-use engine::{Grid, run_animation};
+use engine::{run_animation, Grid};
 use rand::seq::SliceRandom;
 use std::io::{self, Read};
 
 const ALL_EFFECTS: &[&str] = &[
-    "beams", "binarypath", "blackhole", "bouncyballs", "bubbles", "burn",
-    "colorshift", "crumble", "decrypt", "errorcorrect", "expand", "fireworks",
-    "highlight", "laseretch", "matrix", "middleout", "orbittingvolley",
-    "overflow", "pour", "print", "rain", "randomsequence", "rings",
-    "scattered", "slice", "slide", "smoke", "spotlights", "spray", "swarm",
-    "sweep", "synthgrid", "thunderstorm", "unstable", "vhstape", "waves", "wipe",
+    "beams",
+    "binarypath",
+    "blackhole",
+    "bouncyballs",
+    "bubbles",
+    "burn",
+    "colorshift",
+    "crumble",
+    "decrypt",
+    "errorcorrect",
+    "expand",
+    "fireworks",
+    "highlight",
+    "laseretch",
+    "matrix",
+    "middleout",
+    "orbittingvolley",
+    "overflow",
+    "pour",
+    "print",
+    "rain",
+    "randomsequence",
+    "rings",
+    "scattered",
+    "slice",
+    "slide",
+    "smoke",
+    "spotlights",
+    "spray",
+    "swarm",
+    "sweep",
+    "synthgrid",
+    "thunderstorm",
+    "unstable",
+    "vhstape",
+    "waves",
+    "wipe",
 ];
 
 #[derive(Parser)]
@@ -69,7 +100,9 @@ fn main() {
         std::fs::read_to_string(path).expect("Failed to read input file")
     } else {
         let mut buf = String::new();
-        io::stdin().read_to_string(&mut buf).expect("Failed to read stdin");
+        io::stdin()
+            .read_to_string(&mut buf)
+            .expect("Failed to read stdin");
         buf
     };
 
@@ -81,9 +114,17 @@ fn main() {
     let mut rng = rand::thread_rng();
     let effect_name = if cli.random_effect {
         let mut pool: Vec<&str> = if let Some(ref inc) = cli.include_effects {
-            ALL_EFFECTS.iter().filter(|e| inc.iter().any(|i| i == **e)).copied().collect()
+            ALL_EFFECTS
+                .iter()
+                .filter(|e| inc.iter().any(|i| i == **e))
+                .copied()
+                .collect()
         } else if let Some(ref exc) = cli.exclude_effects {
-            ALL_EFFECTS.iter().filter(|e| !exc.iter().any(|x| x == **e)).copied().collect()
+            ALL_EFFECTS
+                .iter()
+                .filter(|e| !exc.iter().any(|x| x == **e))
+                .copied()
+                .collect()
         } else {
             ALL_EFFECTS.to_vec()
         };
@@ -185,8 +226,10 @@ fn main() {
         }
     };
 
-    run_animation(&mut grid, cli.frame_rate, |grid, _frame| {
-        match &mut effect {
+    run_animation(
+        &mut grid,
+        cli.frame_rate,
+        |grid, _frame| match &mut effect {
             Effect::Beams(e) => e.tick(grid),
             Effect::BinaryPath(e) => e.tick(grid),
             Effect::Blackhole(e) => e.tick(grid),
@@ -224,6 +267,6 @@ fn main() {
             Effect::VHSTape(e) => e.tick(grid),
             Effect::Waves(e) => e.tick(grid),
             Effect::Wipe(e) => e.tick(grid),
-        }
-    });
+        },
+    );
 }

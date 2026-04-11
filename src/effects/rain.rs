@@ -1,9 +1,9 @@
 // Rain effect — faithful TTE reimplementation
 // Characters fall from top with rain symbols, fade to final color on landing
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 const RAIN_SYMBOLS: [char; 5] = ['o', '.', ',', '*', '|'];
@@ -44,13 +44,14 @@ impl RainEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("488bff"), Rgb::from_hex("b2e7de"), Rgb::from_hex("57eaf7")],
+            &[
+                Rgb::from_hex("488bff"),
+                Rgb::from_hex("b2e7de"),
+                Rgb::from_hex("57eaf7"),
+            ],
             12,
         );
-        let rain_gradient = Gradient::new(
-            &[Rgb::from_hex("00315C"), Rgb::from_hex("E3EFFC")],
-            8,
-        );
+        let rain_gradient = Gradient::new(&[Rgb::from_hex("00315C"), Rgb::from_hex("E3EFFC")], 8);
 
         let mut rng = rand::thread_rng();
         let mut chars = Vec::with_capacity(width * height);
@@ -58,10 +59,10 @@ impl RainEffect {
 
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Diagonal,
-                );
-                let rain_color = rain_gradient.spectrum()[rng.gen_range(0..rain_gradient.spectrum().len())];
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
+                let rain_color =
+                    rain_gradient.spectrum()[rng.gen_range(0..rain_gradient.spectrum().len())];
                 let rain_symbol = RAIN_SYMBOLS[rng.gen_range(0..RAIN_SYMBOLS.len())];
                 let speed_val: f64 = rng.gen_range(0.33..0.57);
                 let start_y = -1.0;
@@ -119,7 +120,9 @@ impl RainEffect {
         // Tick
         let mut all_done = self.activated_up_to >= self.groups.len();
         for ch in &mut self.chars {
-            if !ch.active { continue; }
+            if !ch.active {
+                continue;
+            }
             if !ch.landed {
                 ch.progress += ch.speed;
                 if ch.progress >= 1.0 {
@@ -134,7 +137,9 @@ impl RainEffect {
                     ch.fade_done = true;
                 }
             }
-            if !ch.fade_done { all_done = false; }
+            if !ch.fade_done {
+                all_done = false;
+            }
         }
 
         // Render
@@ -145,13 +150,19 @@ impl RainEffect {
         }
 
         for ch in &self.chars {
-            if !ch.active { continue; }
+            if !ch.active {
+                continue;
+            }
             if ch.landed {
                 if ch.final_y < self.height && ch.final_x < self.width {
                     let cell = &mut grid.cells[ch.final_y][ch.final_x];
                     cell.visible = true;
                     cell.ch = ch.original_ch;
-                    let t = if ch.fade_done { 1.0 } else { ch.fade_frame as f64 / ch.fade_total as f64 };
+                    let t = if ch.fade_done {
+                        1.0
+                    } else {
+                        ch.fade_frame as f64 / ch.fade_total as f64
+                    };
                     cell.fg = Some(Rgb::lerp(ch.rain_color, ch.final_color, t).to_crossterm());
                 }
             } else {

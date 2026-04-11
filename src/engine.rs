@@ -1,9 +1,9 @@
 use crossterm::{
     cursor, execute, queue,
-    style::{self, Color, SetForegroundColor, ResetColor},
+    style::{self, Color, ResetColor, SetForegroundColor},
     terminal,
 };
-use std::io::{self, Write, BufWriter, IsTerminal};
+use std::io::{self, BufWriter, IsTerminal, Write};
 use std::time::{Duration, Instant};
 use unicode_width::UnicodeWidthChar;
 
@@ -17,7 +17,11 @@ pub struct Cell {
 
 impl Cell {
     pub fn new(ch: char) -> Self {
-        Self { ch, fg: None, visible: false }
+        Self {
+            ch,
+            fg: None,
+            visible: false,
+        }
     }
 }
 
@@ -49,7 +53,11 @@ impl Grid {
             cells.push(row);
         }
 
-        Grid { cells, width, height }
+        Grid {
+            cells,
+            width,
+            height,
+        }
     }
 
     pub fn all_visible(&self) -> bool {
@@ -125,7 +133,12 @@ fn strip_ansi(input: &str) -> String {
 /// Render a single frame, repositioning cursor to `origin_row`
 /// Uses synchronized output to prevent flicker — the terminal holds
 /// all updates until the end marker, then paints in one pass.
-pub fn render_frame(grid: &Grid, out: &mut BufWriter<io::Stdout>, origin_row: u16, term_width: u16) {
+pub fn render_frame(
+    grid: &Grid,
+    out: &mut BufWriter<io::Stdout>,
+    origin_row: u16,
+    term_width: u16,
+) {
     // Begin synchronized update (DEC private mode 2026)
     // Terminals that support this will buffer all output until the end marker
     out.write_all(b"\x1b[?2026h").ok();
@@ -248,11 +261,8 @@ mod tests {
 }
 
 /// Run the animation loop
-pub fn run_animation<F>(
-    grid: &mut Grid,
-    frame_rate: u32,
-    mut tick: F,
-) where
+pub fn run_animation<F>(grid: &mut Grid, frame_rate: u32, mut tick: F)
+where
     F: FnMut(&mut Grid, usize) -> bool, // returns true when done
 {
     let mut stdout = BufWriter::with_capacity(64 * 1024, io::stdout());

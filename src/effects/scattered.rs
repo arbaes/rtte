@@ -4,9 +4,9 @@
 // using in_out_back easing. Color transitions from gradient start to final
 // positional color, synced to movement distance.
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 struct CharMotion {
@@ -45,7 +45,11 @@ impl ScatteredEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("ff9048"), Rgb::from_hex("ab9dff"), Rgb::from_hex("bdffea")],
+            &[
+                Rgb::from_hex("ff9048"),
+                Rgb::from_hex("ab9dff"),
+                Rgb::from_hex("bdffea"),
+            ],
             12,
         );
 
@@ -60,9 +64,8 @@ impl ScatteredEffect {
         for y in 0..height {
             for x in 0..width {
                 let original_ch = grid.cells[y][x].ch;
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
 
                 // Random starting position
                 let start_y = if height > 1 {

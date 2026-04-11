@@ -1,13 +1,19 @@
 // VHSTape effect — glitch waves, snow noise, then redraw
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 #[derive(Clone, Copy, PartialEq)]
-enum Phase { Glitch, Noise, Redraw, Done }
+enum Phase {
+    Glitch,
+    Noise,
+    Redraw,
+    Done,
+}
 
 struct VHSChar {
-    final_y: usize, final_x: usize,
+    final_y: usize,
+    final_x: usize,
     offset_x: f64,
     original_ch: char,
     final_color: Rgb,
@@ -21,7 +27,8 @@ pub struct VHSTapeEffect {
     phase: Phase,
     frame: usize,
     dm: usize,
-    width: usize, height: usize,
+    width: usize,
+    height: usize,
     total_glitch_time: usize,
     glitch_wave_y: isize,
     glitch_wave_dir: isize,
@@ -37,39 +44,65 @@ impl VHSTapeEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height, dm) = (grid.width, grid.height, 2usize);
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("ab48ff"), Rgb::from_hex("e7b2b2"), Rgb::from_hex("fffebd")], 12,
+            &[
+                Rgb::from_hex("ab48ff"),
+                Rgb::from_hex("e7b2b2"),
+                Rgb::from_hex("fffebd"),
+            ],
+            12,
         );
         let glitch_line_colors = vec![
-            Rgb::from_hex("ffffff"), Rgb::from_hex("ff0000"),
-            Rgb::from_hex("00ff00"), Rgb::from_hex("0000ff"), Rgb::from_hex("ffffff"),
+            Rgb::from_hex("ffffff"),
+            Rgb::from_hex("ff0000"),
+            Rgb::from_hex("00ff00"),
+            Rgb::from_hex("0000ff"),
+            Rgb::from_hex("ffffff"),
         ];
         let noise_colors = vec![
-            Rgb::from_hex("1e1e1f"), Rgb::from_hex("3c3b3d"),
-            Rgb::from_hex("6d6c70"), Rgb::from_hex("a2a1a6"),
-            Rgb::from_hex("cbc9cf"), Rgb::from_hex("ffffff"),
+            Rgb::from_hex("1e1e1f"),
+            Rgb::from_hex("3c3b3d"),
+            Rgb::from_hex("6d6c70"),
+            Rgb::from_hex("a2a1a6"),
+            Rgb::from_hex("cbc9cf"),
+            Rgb::from_hex("ffffff"),
         ];
 
         let mut chars = Vec::new();
         for y in 0..height {
             let mut row = Vec::new();
             for x in 0..width {
-                let fc = final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
+                let fc =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 row.push(VHSChar {
-                    final_y: y, final_x: x, offset_x: 0.0,
-                    original_ch: grid.cells[y][x].ch, final_color: fc,
-                    glitching: false, glitch_hold: 0, redraw_step: 0,
+                    final_y: y,
+                    final_x: x,
+                    offset_x: 0.0,
+                    original_ch: grid.cells[y][x].ch,
+                    final_color: fc,
+                    glitching: false,
+                    glitch_hold: 0,
+                    redraw_step: 0,
                 });
             }
             chars.push(row);
         }
 
         VHSTapeEffect {
-            chars, phase: Phase::Glitch, frame: 0, dm, width, height,
+            chars,
+            phase: Phase::Glitch,
+            frame: 0,
+            dm,
+            width,
+            height,
             total_glitch_time: 600 * dm,
-            glitch_wave_y: -1, glitch_wave_dir: 1,
-            noise_frame: 0, noise_duration: 120 * dm,
+            glitch_wave_y: -1,
+            glitch_wave_dir: 1,
+            noise_frame: 0,
+            noise_duration: 120 * dm,
             redraw_row: 0,
-            glitch_line_colors, noise_colors, final_gradient,
+            glitch_line_colors,
+            noise_colors,
+            final_gradient,
         }
     }
 
@@ -83,7 +116,11 @@ impl VHSTapeEffect {
                 // Glitch wave propagation
                 if rng.gen::<f64>() < 0.15 || self.glitch_wave_y >= 0 {
                     if self.glitch_wave_y < 0 {
-                        self.glitch_wave_y = if self.glitch_wave_dir > 0 { 0 } else { self.height as isize - 1 };
+                        self.glitch_wave_y = if self.glitch_wave_dir > 0 {
+                            0
+                        } else {
+                            self.height as isize - 1
+                        };
                     }
                     // Apply glitch to 3 rows around wave
                     for dy in -1..=1 {
@@ -120,11 +157,14 @@ impl VHSTapeEffect {
                 for row in &mut self.chars {
                     for ch in row {
                         if ch.glitching {
-                            if ch.glitch_hold > 0 { ch.glitch_hold -= 1; }
-                            else {
+                            if ch.glitch_hold > 0 {
+                                ch.glitch_hold -= 1;
+                            } else {
                                 ch.glitching = false;
                                 ch.offset_x *= 0.7;
-                                if ch.offset_x.abs() < 0.5 { ch.offset_x = 0.0; }
+                                if ch.offset_x.abs() < 0.5 {
+                                    ch.offset_x = 0.0;
+                                }
                             }
                         }
                     }
@@ -184,7 +224,14 @@ impl VHSTapeEffect {
                             cell.fg = Some(nc.to_crossterm());
                         } else {
                             cell.ch = ' ';
-                            cell.fg = Some(Rgb { r: 30, g: 30, b: 31 }.to_crossterm());
+                            cell.fg = Some(
+                                Rgb {
+                                    r: 30,
+                                    g: 30,
+                                    b: 31,
+                                }
+                                .to_crossterm(),
+                            );
                         }
                     }
                     Phase::Redraw | Phase::Done => {
@@ -217,7 +264,8 @@ impl VHSTapeEffect {
                             let src_x = sx as usize;
                             cell.ch = self.chars[y][src_x].original_ch;
                             if ch.glitching {
-                                let gc = self.glitch_line_colors[rng.gen_range(0..self.glitch_line_colors.len())];
+                                let gc = self.glitch_line_colors
+                                    [rng.gen_range(0..self.glitch_line_colors.len())];
                                 cell.fg = Some(gc.to_crossterm());
                             } else {
                                 cell.fg = Some(ch.final_color.to_crossterm());

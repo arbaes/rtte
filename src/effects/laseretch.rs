@@ -3,9 +3,9 @@
 // A laser beam traces across characters, etching them with heat that cools.
 // Sparks fall from the etch point with bezier motion.
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 #[derive(Clone)]
@@ -45,12 +45,16 @@ impl CharAnim {
     }
 
     fn current_symbol(&self) -> char {
-        if self.scene.is_empty() { return self.original_ch; }
+        if self.scene.is_empty() {
+            return self.original_ch;
+        }
         self.scene[self.scene_idx].symbol
     }
 
     fn current_color(&self) -> Rgb {
-        if self.scene.is_empty() { return self.final_color; }
+        if self.scene.is_empty() {
+            return self.final_color;
+        }
         self.scene[self.scene_idx].color
     }
 }
@@ -77,10 +81,14 @@ struct Spark {
 
 impl Spark {
     fn tick(&mut self) {
-        if !self.active { return; }
+        if !self.active {
+            return;
+        }
         // Advance bezier path
         self.t += self.speed;
-        if self.t >= 1.0 { self.t = 1.0; }
+        if self.t >= 1.0 {
+            self.t = 1.0;
+        }
         let t = easing::out_sine(self.t);
         // Quadratic bezier
         let inv = 1.0 - t;
@@ -103,14 +111,16 @@ impl Spark {
     }
 
     fn current_color(&self) -> Rgb {
-        if self.scene.is_empty() { return Rgb::new(255, 255, 255); }
+        if self.scene.is_empty() {
+            return Rgb::new(255, 255, 255);
+        }
         self.scene[self.scene_idx].color
     }
 }
 
 pub struct LaserEtchEffect {
     chars: Vec<CharAnim>,
-    etch_order: Vec<usize>,  // indices into chars, consumed from front
+    etch_order: Vec<usize>, // indices into chars, consumed from front
     etch_pos: usize,
     etch_delay: usize,
     etch_delay_counter: usize,
@@ -137,21 +147,23 @@ impl LaserEtchEffect {
         let height = grid.height;
 
         // Gradients
-        let cool_grad = Gradient::new(
-            &[Rgb::from_hex("ffe680"), Rgb::from_hex("ff7b00")],
-            8,
-        );
+        let cool_grad = Gradient::new(&[Rgb::from_hex("ffe680"), Rgb::from_hex("ff7b00")], 8);
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("ffffff")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("ffffff"),
+            ],
             8,
         );
-        let laser_grad = Gradient::new(
-            &[Rgb::from_hex("ffffff"), Rgb::from_hex("376cff")],
-            6,
-        );
+        let laser_grad = Gradient::new(&[Rgb::from_hex("ffffff"), Rgb::from_hex("376cff")], 6);
         let spark_grad = Gradient::new(
-            &[Rgb::from_hex("ffffff"), Rgb::from_hex("ffe680"),
-              Rgb::from_hex("ff7b00"), Rgb::from_hex("1a0900")],
+            &[
+                Rgb::from_hex("ffffff"),
+                Rgb::from_hex("ffe680"),
+                Rgb::from_hex("ff7b00"),
+                Rgb::from_hex("1a0900"),
+            ],
             6,
         );
 
@@ -164,9 +176,8 @@ impl LaserEtchEffect {
         for y in 0..height {
             for x in 0..width {
                 let original_ch = grid.cells[y][x].ch;
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
 
                 // Build spawn scene
                 // TTE durations assume ~20-30fps effective rate; at true 60fps multiply by 2
@@ -205,7 +216,9 @@ impl LaserEtchEffect {
                 });
 
                 chars.push(CharAnim {
-                    y, x, original_ch,
+                    y,
+                    x,
+                    original_ch,
                     visible: false,
                     scene,
                     scene_idx: 0,
@@ -220,34 +233,48 @@ impl LaserEtchEffect {
         let etch_order = Self::build_etch_order(width, height, &mut rng);
 
         // Build spark scene template
-        let spark_scene: Vec<SceneFrame> = spark_spectrum.iter().map(|c| {
-            SceneFrame { symbol: '.', color: *c, duration: 14 }
-        }).collect();
+        let spark_scene: Vec<SceneFrame> = spark_spectrum
+            .iter()
+            .map(|c| SceneFrame {
+                symbol: '.',
+                color: *c,
+                duration: 14,
+            })
+            .collect();
 
         // Create spark pool
         let spark_count = 200.min(width * height);
-        let sparks: Vec<Spark> = (0..spark_count).map(|_| {
-            let sym = match rng.gen_range(0..3) {
-                0 => '.',
-                1 => ',',
-                _ => '*',
-            };
-            let mut scene = spark_scene.clone();
-            for f in &mut scene { f.symbol = sym; }
-            Spark {
-                x: 0.0, y: 0.0,
-                start_x: 0.0, start_y: 0.0,
-                ctrl_x: 0.0, ctrl_y: 0.0,
-                end_x: 0.0, end_y: 0.0,
-                t: 0.0, speed: 0.015,
-                symbol: sym,
-                scene,
-                scene_idx: 0,
-                hold_count: 0,
-                scene_complete: false,
-                active: false,
-            }
-        }).collect();
+        let sparks: Vec<Spark> = (0..spark_count)
+            .map(|_| {
+                let sym = match rng.gen_range(0..3) {
+                    0 => '.',
+                    1 => ',',
+                    _ => '*',
+                };
+                let mut scene = spark_scene.clone();
+                for f in &mut scene {
+                    f.symbol = sym;
+                }
+                Spark {
+                    x: 0.0,
+                    y: 0.0,
+                    start_x: 0.0,
+                    start_y: 0.0,
+                    ctrl_x: 0.0,
+                    ctrl_y: 0.0,
+                    end_x: 0.0,
+                    end_y: 0.0,
+                    t: 0.0,
+                    speed: 0.015,
+                    symbol: sym,
+                    scene,
+                    scene_idx: 0,
+                    hold_count: 0,
+                    scene_complete: false,
+                    active: false,
+                }
+            })
+            .collect();
 
         LaserEtchEffect {
             chars,
@@ -274,7 +301,9 @@ impl LaserEtchEffect {
         // Recursive backtracker spanning tree on a grid
         // Visits every cell exactly once in a maze-like path
         let total = width * height;
-        if total == 0 { return Vec::new(); }
+        if total == 0 {
+            return Vec::new();
+        }
 
         let mut visited = vec![false; total];
         let mut order = Vec::with_capacity(total);
@@ -294,19 +323,27 @@ impl LaserEtchEffect {
             let mut neighbors = Vec::new();
             if cy > 0 {
                 let n = (cy - 1) * width + cx;
-                if !visited[n] { neighbors.push(n); }
+                if !visited[n] {
+                    neighbors.push(n);
+                }
             }
             if cy + 1 < height {
                 let n = (cy + 1) * width + cx;
-                if !visited[n] { neighbors.push(n); }
+                if !visited[n] {
+                    neighbors.push(n);
+                }
             }
             if cx > 0 {
                 let n = cy * width + (cx - 1);
-                if !visited[n] { neighbors.push(n); }
+                if !visited[n] {
+                    neighbors.push(n);
+                }
             }
             if cx + 1 < width {
                 let n = cy * width + (cx + 1);
-                if !visited[n] { neighbors.push(n); }
+                if !visited[n] {
+                    neighbors.push(n);
+                }
             }
 
             if neighbors.is_empty() {
@@ -332,8 +369,8 @@ impl LaserEtchEffect {
         spark.start_x = target_x as f64;
         spark.start_y = target_y as f64;
         // Fall target: random x offset, bottom of screen
-        let fall_x = (target_x as f64 + rng.gen_range(-20.0..20.0))
-            .clamp(0.0, self.width as f64 - 1.0);
+        let fall_x =
+            (target_x as f64 + rng.gen_range(-20.0..20.0)).clamp(0.0, self.width as f64 - 1.0);
         let fall_y = self.height as f64 - 1.0;
         spark.end_x = fall_x;
         spark.end_y = fall_y;
@@ -355,7 +392,9 @@ impl LaserEtchEffect {
             _ => '*',
         };
         spark.symbol = sym;
-        for f in &mut spark.scene { f.symbol = sym; }
+        for f in &mut spark.scene {
+            f.symbol = sym;
+        }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
@@ -375,7 +414,9 @@ impl LaserEtchEffect {
                         }
                     }
 
-                    if self.etch_pos >= self.etch_order.len() { break; }
+                    if self.etch_pos >= self.etch_order.len() {
+                        break;
+                    }
                     let idx = self.etch_order[self.etch_pos];
                     self.etch_pos += 1;
 
@@ -408,7 +449,8 @@ impl LaserEtchEffect {
         for &idx in &self.active_char_indices {
             chars[idx].tick();
         }
-        self.active_char_indices.retain(|&idx| !self.chars[idx].scene_complete);
+        self.active_char_indices
+            .retain(|&idx| !self.chars[idx].scene_complete);
 
         // Tick sparks
         for spark in &mut self.sparks {
@@ -476,7 +518,9 @@ impl LaserEtchEffect {
 
         // Render sparks (overlay on grid)
         for spark in &self.sparks {
-            if !spark.active { continue; }
+            if !spark.active {
+                continue;
+            }
             let sy = spark.y.round() as isize;
             let sx = spark.x.round() as isize;
             if sy >= 0 && sy < grid.height as isize && sx >= 0 && sx < grid.width as isize {

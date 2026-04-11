@@ -3,9 +3,9 @@
 // Typewriter: print head moves L→R, types characters with block animation,
 // carriage returns to next row with eased motion.
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 
 #[derive(Clone)]
 struct SceneFrame {
@@ -44,12 +44,16 @@ impl CharAnim {
     }
 
     fn current_symbol(&self) -> char {
-        if self.scene.is_empty() { return self.original_ch; }
+        if self.scene.is_empty() {
+            return self.original_ch;
+        }
         self.scene[self.scene_idx].symbol
     }
 
     fn current_color(&self) -> Rgb {
-        if self.scene.is_empty() { return self.final_color; }
+        if self.scene.is_empty() {
+            return self.final_color;
+        }
         self.scene[self.scene_idx].color
     }
 }
@@ -62,9 +66,9 @@ enum Phase {
 }
 
 pub struct PrintEffect {
-    chars: Vec<Vec<CharAnim>>,  // [row][col]
+    chars: Vec<Vec<CharAnim>>, // [row][col]
     current_row: usize,
-    col_pos: usize,            // next char to type in current row
+    col_pos: usize, // next char to type in current row
     print_speed: usize,
     active_indices: Vec<(usize, usize)>,
     phase: Phase,
@@ -90,7 +94,11 @@ impl PrintEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("02b8bd"), Rgb::from_hex("c1f0e3"), Rgb::from_hex("00ffa0")],
+            &[
+                Rgb::from_hex("02b8bd"),
+                Rgb::from_hex("c1f0e3"),
+                Rgb::from_hex("00ffa0"),
+            ],
             12,
         );
 
@@ -101,9 +109,8 @@ impl PrintEffect {
             let mut row = Vec::with_capacity(width);
             for x in 0..width {
                 let original_ch = grid.cells[y][x].ch;
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Diagonal,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
 
                 // Build typed animation: █→▓→▒→░→original_ch
                 // 5-step gradient from white to final color
@@ -126,7 +133,9 @@ impl PrintEffect {
                 });
 
                 row.push(CharAnim {
-                    y, x, original_ch,
+                    y,
+                    x,
+                    original_ch,
                     visible: false,
                     scene,
                     scene_idx: 0,
@@ -159,8 +168,13 @@ impl PrintEffect {
     }
 
     fn first_non_space_col(&self, row: usize) -> usize {
-        if row >= self.chars.len() { return 0; }
-        self.chars[row].iter().position(|c| c.original_ch != ' ').unwrap_or(0)
+        if row >= self.chars.len() {
+            return 0;
+        }
+        self.chars[row]
+            .iter()
+            .position(|c| c.original_ch != ' ')
+            .unwrap_or(0)
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
@@ -199,7 +213,8 @@ impl PrintEffect {
                             // Start carriage return
                             self.phase = Phase::CarriageReturn;
                             self.cr_start_x = self.head_x;
-                            self.cr_target_x = self.first_non_space_col(self.current_row + 1) as f64;
+                            self.cr_target_x =
+                                self.first_non_space_col(self.current_row + 1) as f64;
                             self.cr_progress = 0.0;
                             self.head_visible = true;
                         } else {
@@ -250,7 +265,8 @@ impl PrintEffect {
         for &(row, col) in &self.active_indices {
             self.chars[row][col].tick();
         }
-        self.active_indices.retain(|&(r, c)| !self.chars[r][c].scene_complete);
+        self.active_indices
+            .retain(|&(r, c)| !self.chars[r][c].scene_complete);
 
         // Render to grid
         for row in &self.chars {
@@ -262,7 +278,9 @@ impl PrintEffect {
                         if ca.scene_complete {
                             cell.ch = ca.original_ch;
                             cell.fg = Some(ca.final_color.to_crossterm());
-                        } else if ca.scene.is_empty() || ca.scene_idx == 0 && ca.hold_count == 0 && !ca.scene_complete {
+                        } else if ca.scene.is_empty()
+                            || ca.scene_idx == 0 && ca.hold_count == 0 && !ca.scene_complete
+                        {
                             // Not yet started animating (space or pending)
                             cell.ch = ca.original_ch;
                             cell.fg = Some(ca.final_color.to_crossterm());

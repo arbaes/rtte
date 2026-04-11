@@ -2,7 +2,7 @@
 // Spotlights search canvas, illuminate nearby chars, then expand to reveal all
 
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 pub struct SpotlightsEffect {
@@ -34,7 +34,11 @@ impl SpotlightsEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("ab48ff"), Rgb::from_hex("e7b2b2"), Rgb::from_hex("fffebd")],
+            &[
+                Rgb::from_hex("ab48ff"),
+                Rgb::from_hex("e7b2b2"),
+                Rgb::from_hex("fffebd"),
+            ],
             12,
         );
 
@@ -47,7 +51,13 @@ impl SpotlightsEffect {
         for y in 0..height {
             let mut row = Vec::with_capacity(width);
             for x in 0..width {
-                row.push(final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical));
+                row.push(final_gradient.color_at_coord(
+                    y,
+                    x,
+                    height,
+                    width,
+                    GradientDirection::Vertical,
+                ));
             }
             final_colors.push(row);
         }
@@ -99,7 +109,9 @@ impl SpotlightsEffect {
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
-        if self.done { return true; }
+        if self.done {
+            return true;
+        }
         self.frame += 1;
 
         let search_done = self.frame >= self.search_frames;
@@ -142,7 +154,11 @@ impl SpotlightsEffect {
 
         // Render: calculate brightness per cell
         let dark = Rgb::new(20, 20, 20);
-        let radius = if self.expanding { self.expand_radius } else { self.beam_width };
+        let radius = if self.expanding {
+            self.expand_radius
+        } else {
+            self.beam_width
+        };
 
         for y in 0..self.height.min(grid.height) {
             for x in 0..self.width.min(grid.width) {
@@ -155,7 +171,9 @@ impl SpotlightsEffect {
                 let mut min_dist = f64::MAX;
                 for spot in &self.spots {
                     let d = ((y as f64 - spot.0).powi(2) + (x as f64 - spot.1).powi(2)).sqrt();
-                    if d < min_dist { min_dist = d; }
+                    if d < min_dist {
+                        min_dist = d;
+                    }
                 }
 
                 let final_color = self.final_colors[y][x];

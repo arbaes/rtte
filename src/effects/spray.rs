@@ -1,11 +1,11 @@
 // Spray effect — faithful TTE reimplementation
 // All characters start at origin point, spray outward to positions
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
-use rand::Rng;
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
+use rand::Rng;
 
 struct SprayChar {
     final_y: usize,
@@ -38,7 +38,11 @@ impl SprayEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             12,
         );
 
@@ -52,11 +56,12 @@ impl SprayEffect {
 
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 let speed_val: f64 = rng.gen_range(0.6..1.4);
-                let dist = ((y as f64 - origin_y).powi(2) + (x as f64 - origin_x).powi(2)).sqrt().max(1.0);
+                let dist = ((y as f64 - origin_y).powi(2) + (x as f64 - origin_x).powi(2))
+                    .sqrt()
+                    .max(1.0);
                 let speed = (speed_val / dist) / dm as f64;
                 let start_color = final_gradient.spectrum()[rng.gen_range(0..spec_len)];
 
@@ -102,7 +107,9 @@ impl SprayEffect {
         // Tick
         let mut all_done = self.pending.is_empty();
         for ch in &mut self.chars {
-            if !ch.active || ch.done { continue; }
+            if !ch.active || ch.done {
+                continue;
+            }
             ch.progress += ch.speed;
             if ch.progress >= 1.0 {
                 ch.progress = 1.0;
@@ -111,7 +118,9 @@ impl SprayEffect {
             let eased = easing::out_expo(ch.progress);
             ch.cur_y = ch.start_y + (ch.final_y as f64 - ch.start_y) * eased;
             ch.cur_x = ch.start_x + (ch.final_x as f64 - ch.start_x) * eased;
-            if !ch.done { all_done = false; }
+            if !ch.done {
+                all_done = false;
+            }
         }
 
         // Render
@@ -122,12 +131,18 @@ impl SprayEffect {
         }
 
         for ch in &self.chars {
-            if !ch.active { continue; }
+            if !ch.active {
+                continue;
+            }
             let ry = ch.cur_y.round() as isize;
             let rx = ch.cur_x.round() as isize;
-            if ry < 0 || rx < 0 { continue; }
+            if ry < 0 || rx < 0 {
+                continue;
+            }
             let (ry, rx) = (ry as usize, rx as usize);
-            if ry >= self.height || rx >= self.width { continue; }
+            if ry >= self.height || rx >= self.width {
+                continue;
+            }
 
             let cell = &mut grid.cells[ry][rx];
             cell.visible = true;

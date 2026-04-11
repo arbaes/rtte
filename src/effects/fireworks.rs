@@ -1,17 +1,37 @@
 // Fireworks effect — faithful TTE reimplementation
 // Shells launch from bottom, explode outward, fall to positions
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 const SHELL_COLORS: [Rgb; 5] = [
-    Rgb { r: 0x88, g: 0xF7, b: 0xE2 },
-    Rgb { r: 0x44, g: 0xD4, b: 0x92 },
-    Rgb { r: 0xF5, g: 0xEB, b: 0x67 },
-    Rgb { r: 0xFF, g: 0xA1, b: 0x5C },
-    Rgb { r: 0xFA, g: 0x23, b: 0x3E },
+    Rgb {
+        r: 0x88,
+        g: 0xF7,
+        b: 0xE2,
+    },
+    Rgb {
+        r: 0x44,
+        g: 0xD4,
+        b: 0x92,
+    },
+    Rgb {
+        r: 0xF5,
+        g: 0xEB,
+        b: 0x67,
+    },
+    Rgb {
+        r: 0xFF,
+        g: 0xA1,
+        b: 0x5C,
+    },
+    Rgb {
+        r: 0xFA,
+        g: 0x23,
+        b: 0x3E,
+    },
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -72,7 +92,11 @@ impl FireworksEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             12,
         );
 
@@ -84,7 +108,11 @@ impl FireworksEffect {
         for y in 0..height {
             for x in 0..width {
                 let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Horizontal,
+                    y,
+                    x,
+                    height,
+                    width,
+                    GradientDirection::Horizontal,
                 );
                 chars.push(FWChar {
                     final_y: y,
@@ -180,7 +208,11 @@ impl FireworksEffect {
                 for &ci in &shell.char_indices {
                     self.chars[ci].phase = FWPhase::Launch;
                     self.chars[ci].progress = 0.0;
-                    self.chars[ci].speed = (0.35 / ((self.chars[ci].launch_start_y - self.chars[ci].origin_y).abs().max(1.0))) / dm as f64;
+                    self.chars[ci].speed = (0.35
+                        / ((self.chars[ci].launch_start_y - self.chars[ci].origin_y)
+                            .abs()
+                            .max(1.0)))
+                        / dm as f64;
                 }
                 self.activated_up_to += 1;
                 let mut rng = rand::thread_rng();
@@ -196,7 +228,9 @@ impl FireworksEffect {
 
         for ch in &mut self.chars {
             match ch.phase {
-                FWPhase::Waiting => { all_done = false; }
+                FWPhase::Waiting => {
+                    all_done = false;
+                }
                 FWPhase::Launch => {
                     ch.progress += ch.speed;
                     if ch.progress >= 1.0 {
@@ -205,7 +239,9 @@ impl FireworksEffect {
                         ch.cur_y = ch.origin_y;
                         ch.cur_x = ch.origin_x;
                         let dist = ((ch.explode_target_y - ch.origin_y).powi(2)
-                            + (ch.explode_target_x - ch.origin_x).powi(2)).sqrt().max(1.0);
+                            + (ch.explode_target_x - ch.origin_x).powi(2))
+                        .sqrt()
+                        .max(1.0);
                         ch.speed = (rng.gen_range(0.2..0.4) / dist) / dm as f64;
                     } else {
                         let eased = easing::out_expo(ch.progress);
@@ -220,7 +256,9 @@ impl FireworksEffect {
                         ch.progress = 0.0;
                         ch.phase = FWPhase::Fall;
                         let dist = ((ch.final_y as f64 - ch.explode_target_y).powi(2)
-                            + (ch.final_x as f64 - ch.explode_target_x).powi(2)).sqrt().max(1.0);
+                            + (ch.final_x as f64 - ch.explode_target_x).powi(2))
+                        .sqrt()
+                        .max(1.0);
                         ch.speed = (0.6 / dist) / dm as f64;
                         ch.cur_y = ch.explode_target_y;
                         ch.cur_x = ch.explode_target_x;
@@ -240,10 +278,14 @@ impl FireworksEffect {
                         ch.cur_x = ch.final_x as f64;
                     } else {
                         let eased = easing::in_out_quart(ch.progress);
-                        ch.cur_y = ch.explode_target_y + (ch.final_y as f64 - ch.explode_target_y) * eased;
-                        ch.cur_x = ch.explode_target_x + (ch.final_x as f64 - ch.explode_target_x) * eased;
+                        ch.cur_y =
+                            ch.explode_target_y + (ch.final_y as f64 - ch.explode_target_y) * eased;
+                        ch.cur_x =
+                            ch.explode_target_x + (ch.final_x as f64 - ch.explode_target_x) * eased;
                     }
-                    if ch.phase != FWPhase::Done { all_done = false; }
+                    if ch.phase != FWPhase::Done {
+                        all_done = false;
+                    }
                 }
                 FWPhase::Done => {}
             }
@@ -257,12 +299,18 @@ impl FireworksEffect {
         }
 
         for ch in &self.chars {
-            if ch.phase == FWPhase::Waiting { continue; }
+            if ch.phase == FWPhase::Waiting {
+                continue;
+            }
             let ry = ch.cur_y.round() as isize;
             let rx = ch.cur_x.round() as isize;
-            if ry < 0 || rx < 0 { continue; }
+            if ry < 0 || rx < 0 {
+                continue;
+            }
             let (ry, rx) = (ry as usize, rx as usize);
-            if ry >= self.height || rx >= self.width { continue; }
+            if ry >= self.height || rx >= self.width {
+                continue;
+            }
 
             let cell = &mut grid.cells[ry][rx];
             cell.visible = true;
@@ -275,8 +323,11 @@ impl FireworksEffect {
                 FWPhase::Explode => {
                     cell.ch = ch.original_ch;
                     let t = ch.progress;
-                    let bright = Rgb::lerp(ch.shell_color, Rgb::new(255, 255, 255), (t * 2.0).min(1.0));
-                    let color = if t < 0.5 { bright } else {
+                    let bright =
+                        Rgb::lerp(ch.shell_color, Rgb::new(255, 255, 255), (t * 2.0).min(1.0));
+                    let color = if t < 0.5 {
+                        bright
+                    } else {
                         Rgb::lerp(Rgb::new(255, 255, 255), ch.shell_color, (t - 0.5) * 2.0)
                     };
                     cell.fg = Some(color.to_crossterm());

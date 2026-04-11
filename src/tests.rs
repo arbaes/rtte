@@ -1,3 +1,4 @@
+use crate::effects::*;
 /// Effect convergence and invariant tests.
 ///
 /// Each effect is tested with a small fixed input. Tests verify:
@@ -7,9 +8,7 @@
 ///
 /// Effects that use rand internally are non-deterministic in animation but
 /// their final state must always match the original text.
-
 use crate::engine::Grid;
-use crate::effects::*;
 
 // 3-row × 13-col test grid — enough to exercise most geometric logic.
 const TEST_INPUT: &str = "Hello, World!\nfrom rtte 0.1\n  42 chars  ";
@@ -96,83 +95,83 @@ macro_rules! effect_test {
 
 // ── per-effect convergence tests ─────────────────────────────────────────────
 
-effect_test!(beams_completes,           BeamsEffect);
-effect_test!(binarypath_completes,      BinaryPathEffect);
-effect_test!(blackhole_completes,       BlackholeEffect);
-effect_test!(bouncyballs_completes,     BouncyBallsEffect);
-effect_test!(bubbles_completes,         BubblesEffect);
-effect_test!(burn_completes,            BurnEffect);
-effect_test!(colorshift_completes,      ColorShiftEffect);
-effect_test!(crumble_completes,         CrumbleEffect);
-effect_test!(decrypt_completes,         DecryptEffect);
-effect_test!(errorcorrect_completes,    ErrorCorrectEffect);
-effect_test!(expand_completes,          ExpandEffect);
-effect_test!(fireworks_completes,       FireworksEffect);
-effect_test!(highlight_completes,       HighlightEffect);
-effect_test!(laseretch_completes,       LaserEtchEffect);
-effect_test!(matrix_completes,          MatrixEffect);
-effect_test!(middleout_completes,       MiddleOutEffect);
+effect_test!(beams_completes, BeamsEffect);
+effect_test!(binarypath_completes, BinaryPathEffect);
+effect_test!(blackhole_completes, BlackholeEffect);
+effect_test!(bouncyballs_completes, BouncyBallsEffect);
+effect_test!(bubbles_completes, BubblesEffect);
+effect_test!(burn_completes, BurnEffect);
+effect_test!(colorshift_completes, ColorShiftEffect);
+effect_test!(crumble_completes, CrumbleEffect);
+effect_test!(decrypt_completes, DecryptEffect);
+effect_test!(errorcorrect_completes, ErrorCorrectEffect);
+effect_test!(expand_completes, ExpandEffect);
+effect_test!(fireworks_completes, FireworksEffect);
+effect_test!(highlight_completes, HighlightEffect);
+effect_test!(laseretch_completes, LaserEtchEffect);
+effect_test!(matrix_completes, MatrixEffect);
+effect_test!(middleout_completes, MiddleOutEffect);
 effect_test!(orbittingvolley_completes, OrbittingVolleyEffect);
-effect_test!(overflow_completes,        OverflowEffect);
-effect_test!(pour_completes,            PourEffect);
-effect_test!(print_completes,           PrintEffect);
-effect_test!(rain_completes,            RainEffect);
-effect_test!(randomsequence_completes,  RandomSequenceEffect);
-effect_test!(rings_completes,           RingsEffect);
-effect_test!(scattered_completes,       ScatteredEffect);
-effect_test!(slice_completes,           SliceEffect);
-effect_test!(slide_completes,           SlideEffect);
-effect_test!(smoke_completes,           SmokeEffect);
-effect_test!(spotlights_completes,      SpotlightsEffect);
-effect_test!(spray_completes,           SprayEffect);
-effect_test!(swarm_completes,           SwarmEffect);
-effect_test!(sweep_completes,           SweepEffect);
-effect_test!(synthgrid_completes,       SynthGridEffect);
-effect_test!(thunderstorm_completes,    ThunderstormEffect);
-effect_test!(unstable_completes,        UnstableEffect);
-effect_test!(vhstape_completes,         VHSTapeEffect);
-effect_test!(waves_completes,           WavesEffect);
-effect_test!(wipe_completes,            WipeEffect);
+effect_test!(overflow_completes, OverflowEffect);
+effect_test!(pour_completes, PourEffect);
+effect_test!(print_completes, PrintEffect);
+effect_test!(rain_completes, RainEffect);
+effect_test!(randomsequence_completes, RandomSequenceEffect);
+effect_test!(rings_completes, RingsEffect);
+effect_test!(scattered_completes, ScatteredEffect);
+effect_test!(slice_completes, SliceEffect);
+effect_test!(slide_completes, SlideEffect);
+effect_test!(smoke_completes, SmokeEffect);
+effect_test!(spotlights_completes, SpotlightsEffect);
+effect_test!(spray_completes, SprayEffect);
+effect_test!(swarm_completes, SwarmEffect);
+effect_test!(sweep_completes, SweepEffect);
+effect_test!(synthgrid_completes, SynthGridEffect);
+effect_test!(thunderstorm_completes, ThunderstormEffect);
+effect_test!(unstable_completes, UnstableEffect);
+effect_test!(vhstape_completes, VHSTapeEffect);
+effect_test!(waves_completes, WavesEffect);
+effect_test!(wipe_completes, WipeEffect);
 
 // ── edge-case tests (tiny / single-char input) ────────────────────────────────
 
-effect_test!(beams_tiny,           BeamsEffect,           TINY_INPUT);
-effect_test!(binarypath_tiny,      BinaryPathEffect,      TINY_INPUT);
-effect_test!(blackhole_tiny,       BlackholeEffect,       TINY_INPUT);
-effect_test!(bouncyballs_tiny,     BouncyBallsEffect,     TINY_INPUT);
-effect_test!(bubbles_tiny,         BubblesEffect,         TINY_INPUT);
-effect_test!(burn_tiny,            BurnEffect,            TINY_INPUT);
-effect_test!(colorshift_tiny,      ColorShiftEffect,      TINY_INPUT);
-effect_test!(crumble_tiny,         CrumbleEffect,         TINY_INPUT);
-effect_test!(decrypt_tiny,         DecryptEffect,         TINY_INPUT);
-effect_test!(errorcorrect_tiny,    ErrorCorrectEffect,    TINY_INPUT);
-effect_test!(expand_tiny,          ExpandEffect,          TINY_INPUT);
-effect_test!(fireworks_tiny,       FireworksEffect,       TINY_INPUT);
-effect_test!(highlight_tiny,       HighlightEffect,       TINY_INPUT);
-effect_test!(laseretch_tiny,       LaserEtchEffect,       TINY_INPUT);
-effect_test!(matrix_tiny,          MatrixEffect,          TINY_INPUT);
-effect_test!(middleout_tiny,       MiddleOutEffect,       TINY_INPUT);
+effect_test!(beams_tiny, BeamsEffect, TINY_INPUT);
+effect_test!(binarypath_tiny, BinaryPathEffect, TINY_INPUT);
+effect_test!(blackhole_tiny, BlackholeEffect, TINY_INPUT);
+effect_test!(bouncyballs_tiny, BouncyBallsEffect, TINY_INPUT);
+effect_test!(bubbles_tiny, BubblesEffect, TINY_INPUT);
+effect_test!(burn_tiny, BurnEffect, TINY_INPUT);
+effect_test!(colorshift_tiny, ColorShiftEffect, TINY_INPUT);
+effect_test!(crumble_tiny, CrumbleEffect, TINY_INPUT);
+effect_test!(decrypt_tiny, DecryptEffect, TINY_INPUT);
+effect_test!(errorcorrect_tiny, ErrorCorrectEffect, TINY_INPUT);
+effect_test!(expand_tiny, ExpandEffect, TINY_INPUT);
+effect_test!(fireworks_tiny, FireworksEffect, TINY_INPUT);
+effect_test!(highlight_tiny, HighlightEffect, TINY_INPUT);
+effect_test!(laseretch_tiny, LaserEtchEffect, TINY_INPUT);
+effect_test!(matrix_tiny, MatrixEffect, TINY_INPUT);
+effect_test!(middleout_tiny, MiddleOutEffect, TINY_INPUT);
 effect_test!(orbittingvolley_tiny, OrbittingVolleyEffect, TINY_INPUT);
-effect_test!(overflow_tiny,        OverflowEffect,        TINY_INPUT);
-effect_test!(pour_tiny,            PourEffect,            TINY_INPUT);
-effect_test!(print_tiny,           PrintEffect,           TINY_INPUT);
-effect_test!(rain_tiny,            RainEffect,            TINY_INPUT);
-effect_test!(randomsequence_tiny,  RandomSequenceEffect,  TINY_INPUT);
-effect_test!(rings_tiny,           RingsEffect,           TINY_INPUT);
-effect_test!(scattered_tiny,       ScatteredEffect,       TINY_INPUT);
-effect_test!(slice_tiny,           SliceEffect,           TINY_INPUT);
-effect_test!(slide_tiny,           SlideEffect,           TINY_INPUT);
-effect_test!(smoke_tiny,           SmokeEffect,           TINY_INPUT);
-effect_test!(spotlights_tiny,      SpotlightsEffect,      TINY_INPUT);
-effect_test!(spray_tiny,           SprayEffect,           TINY_INPUT);
-effect_test!(swarm_tiny,           SwarmEffect,           TINY_INPUT);
-effect_test!(sweep_tiny,           SweepEffect,           TINY_INPUT);
-effect_test!(synthgrid_tiny,       SynthGridEffect,       TINY_INPUT);
-effect_test!(thunderstorm_tiny,    ThunderstormEffect,    TINY_INPUT);
-effect_test!(unstable_tiny,        UnstableEffect,        TINY_INPUT);
-effect_test!(vhstape_tiny,         VHSTapeEffect,         TINY_INPUT);
-effect_test!(waves_tiny,           WavesEffect,           TINY_INPUT);
-effect_test!(wipe_tiny,            WipeEffect,            TINY_INPUT);
+effect_test!(overflow_tiny, OverflowEffect, TINY_INPUT);
+effect_test!(pour_tiny, PourEffect, TINY_INPUT);
+effect_test!(print_tiny, PrintEffect, TINY_INPUT);
+effect_test!(rain_tiny, RainEffect, TINY_INPUT);
+effect_test!(randomsequence_tiny, RandomSequenceEffect, TINY_INPUT);
+effect_test!(rings_tiny, RingsEffect, TINY_INPUT);
+effect_test!(scattered_tiny, ScatteredEffect, TINY_INPUT);
+effect_test!(slice_tiny, SliceEffect, TINY_INPUT);
+effect_test!(slide_tiny, SlideEffect, TINY_INPUT);
+effect_test!(smoke_tiny, SmokeEffect, TINY_INPUT);
+effect_test!(spotlights_tiny, SpotlightsEffect, TINY_INPUT);
+effect_test!(spray_tiny, SprayEffect, TINY_INPUT);
+effect_test!(swarm_tiny, SwarmEffect, TINY_INPUT);
+effect_test!(sweep_tiny, SweepEffect, TINY_INPUT);
+effect_test!(synthgrid_tiny, SynthGridEffect, TINY_INPUT);
+effect_test!(thunderstorm_tiny, ThunderstormEffect, TINY_INPUT);
+effect_test!(unstable_tiny, UnstableEffect, TINY_INPUT);
+effect_test!(vhstape_tiny, VHSTapeEffect, TINY_INPUT);
+effect_test!(waves_tiny, WavesEffect, TINY_INPUT);
+effect_test!(wipe_tiny, WipeEffect, TINY_INPUT);
 
 // ── deterministic behaviour tests ────────────────────────────────────────────
 //
@@ -225,7 +224,10 @@ fn print_reveals_row_by_row() {
 
     // At least some cells in row 0 must be visible.
     let row0_visible = grid.cells[0].iter().any(|c| c.visible);
-    assert!(row0_visible, "print: row 0 should have visible cells after 65 ticks");
+    assert!(
+        row0_visible,
+        "print: row 0 should have visible cells after 65 ticks"
+    );
 
     // Row 2 should not have all cells visible yet.
     let row2_all_visible = grid.cells[2].iter().all(|c| c.visible || c.ch == ' ');

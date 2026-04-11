@@ -1,9 +1,9 @@
 // Pour effect — faithful TTE reimplementation
 // Characters pour from top, falling to their positions with varied speeds
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 struct PourChar {
@@ -37,7 +37,11 @@ impl PourEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             12,
         );
 
@@ -48,9 +52,8 @@ impl PourEffect {
         // Pour down: start from top, group by column
         for x in 0..width {
             for y in 0..height {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 let speed_val: f64 = rng.gen_range(0.4..0.6);
                 let start_y = -1.0;
                 let dist = (y as f64 - start_y).abs().max(1.0);
@@ -116,7 +119,9 @@ impl PourEffect {
         // Tick movement
         let mut all_done = self.pending.is_empty();
         for ch in &mut self.chars {
-            if !ch.active || ch.done { continue; }
+            if !ch.active || ch.done {
+                continue;
+            }
             ch.progress += ch.speed;
             if ch.progress >= 1.0 {
                 ch.progress = 1.0;
@@ -124,7 +129,9 @@ impl PourEffect {
             }
             let eased = easing::in_quad(ch.progress);
             ch.cur_y = ch.start_y + (ch.final_y as f64 - ch.start_y) * eased;
-            if !ch.done { all_done = false; }
+            if !ch.done {
+                all_done = false;
+            }
         }
 
         // Render
@@ -135,7 +142,9 @@ impl PourEffect {
         }
 
         for ch in &self.chars {
-            if !ch.active { continue; }
+            if !ch.active {
+                continue;
+            }
             let ry = ch.cur_y.round() as isize;
             if ry >= 0 && (ry as usize) < self.height && ch.final_x < self.width {
                 let cell = &mut grid.cells[ry as usize][ch.final_x];

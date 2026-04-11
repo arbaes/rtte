@@ -1,6 +1,6 @@
 // ColorShift effect — animated gradient cycle with traveling wave
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 
 pub struct ColorShiftEffect {
     frame: usize,
@@ -24,8 +24,12 @@ impl ColorShiftEffect {
 
         // Rainbow spectrum
         let rainbow_stops = [
-            Rgb::from_hex("e81416"), Rgb::from_hex("ffa500"), Rgb::from_hex("faeb36"),
-            Rgb::from_hex("79c314"), Rgb::from_hex("487de7"), Rgb::from_hex("4b369d"),
+            Rgb::from_hex("e81416"),
+            Rgb::from_hex("ffa500"),
+            Rgb::from_hex("faeb36"),
+            Rgb::from_hex("79c314"),
+            Rgb::from_hex("487de7"),
+            Rgb::from_hex("4b369d"),
             Rgb::from_hex("70369d"),
         ];
         let spectrum_gradient = Gradient::new(&rainbow_stops, 12);
@@ -46,15 +50,26 @@ impl ColorShiftEffect {
         }
 
         ColorShiftEffect {
-            frame: 0, dm, width, height, spectrum,
-            gradient_frames: 2 * dm, cycles: 3,
-            current_cycle: 0, spectrum_offset: 0, step_counter: 0,
-            final_gradient, done: false, original,
+            frame: 0,
+            dm,
+            width,
+            height,
+            spectrum,
+            gradient_frames: 2 * dm,
+            cycles: 3,
+            current_cycle: 0,
+            spectrum_offset: 0,
+            step_counter: 0,
+            final_gradient,
+            done: false,
+            original,
         }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
-        if self.done { return true; }
+        if self.done {
+            return true;
+        }
         self.frame += 1;
         self.step_counter += 1;
 
@@ -67,13 +82,21 @@ impl ColorShiftEffect {
                 if self.current_cycle >= self.cycles {
                     self.done = true;
                     // Final state
-                    for y in 0..self.height { for x in 0..self.width {
-                        let cell = &mut grid.cells[y][x];
-                        cell.visible = true;
-                        cell.ch = self.original[y][x];
-                        let fc = self.final_gradient.color_at_coord(y, x, self.height, self.width, GradientDirection::Vertical);
-                        cell.fg = Some(fc.to_crossterm());
-                    }}
+                    for y in 0..self.height {
+                        for x in 0..self.width {
+                            let cell = &mut grid.cells[y][x];
+                            cell.visible = true;
+                            cell.ch = self.original[y][x];
+                            let fc = self.final_gradient.color_at_coord(
+                                y,
+                                x,
+                                self.height,
+                                self.width,
+                                GradientDirection::Vertical,
+                            );
+                            cell.fg = Some(fc.to_crossterm());
+                        }
+                    }
                     return true;
                 }
             }
@@ -85,20 +108,22 @@ impl ColorShiftEffect {
         let center_x = self.width as f64 / 2.0;
         let max_dist = ((center_y * center_y) + (center_x * center_x)).sqrt();
 
-        for y in 0..self.height { for x in 0..self.width {
-            let cell = &mut grid.cells[y][x];
-            cell.visible = true;
-            cell.ch = self.original[y][x];
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let cell = &mut grid.cells[y][x];
+                cell.visible = true;
+                cell.ch = self.original[y][x];
 
-            // Radial distance index
-            let dy = y as f64 - center_y;
-            let dx = x as f64 - center_x;
-            let dist = (dy * dy + dx * dx).sqrt();
-            let norm_dist = dist / max_dist.max(1.0);
-            let shift = (norm_dist * spec_len as f64) as usize;
-            let idx = (self.spectrum_offset + shift) % spec_len;
-            cell.fg = Some(self.spectrum[idx].to_crossterm());
-        }}
+                // Radial distance index
+                let dy = y as f64 - center_y;
+                let dx = x as f64 - center_x;
+                let dist = (dy * dy + dx * dx).sqrt();
+                let norm_dist = dist / max_dist.max(1.0);
+                let shift = (norm_dist * spec_len as f64) as usize;
+                let idx = (self.spectrum_offset + shift) % spec_len;
+                cell.fg = Some(self.spectrum[idx].to_crossterm());
+            }
+        }
 
         false
     }

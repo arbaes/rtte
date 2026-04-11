@@ -1,8 +1,7 @@
+use crate::easing;
 /// Per-character animation state, motion paths, and scene system.
 /// This matches TTE's base_character + animation + motion modules.
-
 use crate::gradient::Rgb;
-use crate::easing;
 
 /// A 2D coordinate (column, row) using floats for sub-cell positioning
 #[derive(Clone, Copy, Debug)]
@@ -57,7 +56,14 @@ impl MotionPath {
     }
 
     pub fn single(start: Coord, target: Coord, speed: f64, easing: fn(f64) -> f64) -> Self {
-        Self::new(start, vec![Waypoint { target, speed, easing }])
+        Self::new(
+            start,
+            vec![Waypoint {
+                target,
+                speed,
+                easing,
+            }],
+        )
     }
 
     /// Advance the path by one frame. Returns current position.
@@ -165,7 +171,11 @@ impl Scene {
     ) -> Self {
         let mut frames = Vec::new();
         for i in 0..=steps {
-            let t = if steps == 0 { 1.0 } else { i as f64 / steps as f64 };
+            let t = if steps == 0 {
+                1.0
+            } else {
+                i as f64 / steps as f64
+            };
             frames.push(SceneFrame {
                 symbol,
                 color: Rgb::lerp(from, to, t),

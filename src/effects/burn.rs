@@ -2,19 +2,29 @@
 // Fire spreads through text with burn symbols, smoke particles
 
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 use std::collections::VecDeque;
 
 const BURN_CHARS: [char; 9] = ['\'', '.', '▖', '▙', '█', '▜', '▀', '▝', '.'];
 
 #[derive(Clone, Copy, PartialEq)]
-enum BurnPhase { Waiting, Burning, Final, Done }
+enum BurnPhase {
+    Waiting,
+    Burning,
+    Final,
+    Done,
+}
 
 struct BurnChar {
-    y: usize, x: usize, original_ch: char, final_color: Rgb,
-    phase: BurnPhase, frame: usize,
-    burn_total: usize, final_total: usize,
+    y: usize,
+    x: usize,
+    original_ch: char,
+    final_color: Rgb,
+    phase: BurnPhase,
+    frame: usize,
+    burn_total: usize,
+    final_total: usize,
 }
 
 pub struct BurnEffect {
@@ -22,28 +32,39 @@ pub struct BurnEffect {
     bfs_queue: VecDeque<(usize, usize)>,
     visited: Vec<Vec<bool>>,
     burn_gradient: Gradient,
-    dm: usize, width: usize, height: usize, started: bool,
+    dm: usize,
+    width: usize,
+    height: usize,
+    started: bool,
 }
 
 impl BurnEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height, dm) = (grid.width, grid.height, 2usize);
-        let final_gradient = Gradient::new(
-            &[Rgb::from_hex("00c3ff"), Rgb::from_hex("ffff1c")], 12,
-        );
+        let final_gradient = Gradient::new(&[Rgb::from_hex("00c3ff"), Rgb::from_hex("ffff1c")], 12);
         let burn_gradient = Gradient::new(
-            &[Rgb::from_hex("ffffff"), Rgb::from_hex("fff75d"), Rgb::from_hex("fe650d"),
-              Rgb::from_hex("8A003C"), Rgb::from_hex("510100")],
+            &[
+                Rgb::from_hex("ffffff"),
+                Rgb::from_hex("fff75d"),
+                Rgb::from_hex("fe650d"),
+                Rgb::from_hex("8A003C"),
+                Rgb::from_hex("510100"),
+            ],
             BURN_CHARS.len() * 4,
         );
         let mut chars = Vec::with_capacity(height);
         for y in 0..height {
             let mut row = Vec::with_capacity(width);
             for x in 0..width {
-                let fc = final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
+                let fc =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 row.push(BurnChar {
-                    y, x, original_ch: grid.cells[y][x].ch, final_color: fc,
-                    phase: BurnPhase::Waiting, frame: 0,
+                    y,
+                    x,
+                    original_ch: grid.cells[y][x].ch,
+                    final_color: fc,
+                    phase: BurnPhase::Waiting,
+                    frame: 0,
                     burn_total: BURN_CHARS.len() * 4 * dm,
                     final_total: 8 * dm,
                 });
@@ -51,9 +72,14 @@ impl BurnEffect {
             chars.push(row);
         }
         BurnEffect {
-            chars, bfs_queue: VecDeque::new(),
+            chars,
+            bfs_queue: VecDeque::new(),
             visited: vec![vec![false; width]; height],
-            burn_gradient, dm, width, height, started: false,
+            burn_gradient,
+            dm,
+            width,
+            height,
+            started: false,
         }
     }
 
@@ -95,18 +121,24 @@ impl BurnEffect {
         for row in &mut self.chars {
             for ch in row {
                 match ch.phase {
-                    BurnPhase::Waiting => { all_done = false; }
+                    BurnPhase::Waiting => {
+                        all_done = false;
+                    }
                     BurnPhase::Burning => {
                         ch.frame += 1;
                         if ch.frame >= ch.burn_total {
-                            ch.phase = BurnPhase::Final; ch.frame = 0;
+                            ch.phase = BurnPhase::Final;
+                            ch.frame = 0;
                         }
                         all_done = false;
                     }
                     BurnPhase::Final => {
                         ch.frame += 1;
-                        if ch.frame >= ch.final_total { ch.phase = BurnPhase::Done; }
-                        else { all_done = false; }
+                        if ch.frame >= ch.final_total {
+                            ch.phase = BurnPhase::Done;
+                        } else {
+                            all_done = false;
+                        }
                     }
                     BurnPhase::Done => {}
                 }
@@ -116,7 +148,9 @@ impl BurnEffect {
         // Render
         for row in &self.chars {
             for ch in row {
-                if ch.y >= grid.height || ch.x >= grid.width { continue; }
+                if ch.y >= grid.height || ch.x >= grid.width {
+                    continue;
+                }
                 let cell = &mut grid.cells[ch.y][ch.x];
                 cell.visible = true;
                 match ch.phase {

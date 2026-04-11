@@ -1,18 +1,42 @@
 // Blackhole effect — faithful TTE reimplementation
 // Characters pulled into center, consumed, then explode outward
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 const STAR_COLORS: [Rgb; 6] = [
-    Rgb { r: 0xff, g: 0xcc, b: 0x0d },
-    Rgb { r: 0xff, g: 0x73, b: 0x26 },
-    Rgb { r: 0xff, g: 0x19, b: 0x4d },
-    Rgb { r: 0xbf, g: 0x26, b: 0x69 },
-    Rgb { r: 0x70, g: 0x2a, b: 0x8c },
-    Rgb { r: 0x04, g: 0x9d, b: 0xbf },
+    Rgb {
+        r: 0xff,
+        g: 0xcc,
+        b: 0x0d,
+    },
+    Rgb {
+        r: 0xff,
+        g: 0x73,
+        b: 0x26,
+    },
+    Rgb {
+        r: 0xff,
+        g: 0x19,
+        b: 0x4d,
+    },
+    Rgb {
+        r: 0xbf,
+        g: 0x26,
+        b: 0x69,
+    },
+    Rgb {
+        r: 0x70,
+        g: 0x2a,
+        b: 0x8c,
+    },
+    Rgb {
+        r: 0x04,
+        g: 0x9d,
+        b: 0xbf,
+    },
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -60,7 +84,11 @@ impl BlackholeEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             9,
         );
 
@@ -84,11 +112,12 @@ impl BlackholeEffect {
         positions.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
 
         for &(y, x, _) in &positions {
-            let final_color = final_gradient.color_at_coord(
-                y, x, height, width, GradientDirection::Diagonal,
-            );
+            let final_color =
+                final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
             let star_color = STAR_COLORS[rng.gen_range(0..STAR_COLORS.len())];
-            let dist_to_center = ((y as f64 - center_y).powi(2) + (x as f64 - center_x).powi(2)).sqrt().max(1.0);
+            let dist_to_center = ((y as f64 - center_y).powi(2) + (x as f64 - center_x).powi(2))
+                .sqrt()
+                .max(1.0);
             let consume_speed = (rng.gen_range(0.17..0.30) / dist_to_center) / dm as f64;
 
             // Random explosion target
@@ -147,9 +176,10 @@ impl BlackholeEffect {
         }
 
         // Check if all consumed → trigger explosion
-        let all_consumed = self.chars.iter().all(|c| {
-            c.phase != BHPhase::Forming && c.phase != BHPhase::Consuming
-        });
+        let all_consumed = self
+            .chars
+            .iter()
+            .all(|c| c.phase != BHPhase::Forming && c.phase != BHPhase::Consuming);
 
         let mut all_done = true;
         let mut rng = rand::thread_rng();
@@ -166,8 +196,10 @@ impl BlackholeEffect {
                         ch.phase = BHPhase::Exploding;
                         ch.cur_y = self.center_y;
                         ch.cur_x = self.center_x;
-                        let dist = ((ch.explode_y - self.center_y).powi(2) +
-                            (ch.explode_x - self.center_x).powi(2)).sqrt().max(1.0);
+                        let dist = ((ch.explode_y - self.center_y).powi(2)
+                            + (ch.explode_x - self.center_x).powi(2))
+                        .sqrt()
+                        .max(1.0);
                         ch.speed = (rng.gen_range(0.3..0.4) / dist) / dm as f64;
                     } else {
                         let eased = easing::in_expo(ch.progress);
@@ -183,8 +215,10 @@ impl BlackholeEffect {
                         ch.phase = BHPhase::Settling;
                         ch.cur_y = ch.explode_y;
                         ch.cur_x = ch.explode_x;
-                        let dist = ((ch.final_y as f64 - ch.explode_y).powi(2) +
-                            (ch.final_x as f64 - ch.explode_x).powi(2)).sqrt().max(1.0);
+                        let dist = ((ch.final_y as f64 - ch.explode_y).powi(2)
+                            + (ch.final_x as f64 - ch.explode_x).powi(2))
+                        .sqrt()
+                        .max(1.0);
                         ch.speed = (rng.gen_range(0.04..0.06) / dist.sqrt()) / dm as f64;
                     } else {
                         let eased = easing::out_expo(ch.progress);
@@ -205,7 +239,9 @@ impl BlackholeEffect {
                         ch.cur_y = ch.explode_y + (ch.final_y as f64 - ch.explode_y) * eased;
                         ch.cur_x = ch.explode_x + (ch.final_x as f64 - ch.explode_x) * eased;
                     }
-                    if ch.phase != BHPhase::Done { all_done = false; }
+                    if ch.phase != BHPhase::Done {
+                        all_done = false;
+                    }
                 }
                 BHPhase::Done => {}
             }
@@ -221,9 +257,13 @@ impl BlackholeEffect {
         for ch in &self.chars {
             let ry = ch.cur_y.round() as isize;
             let rx = ch.cur_x.round() as isize;
-            if ry < 0 || rx < 0 { continue; }
+            if ry < 0 || rx < 0 {
+                continue;
+            }
             let (ry, rx) = (ry as usize, rx as usize);
-            if ry >= self.height || rx >= self.width { continue; }
+            if ry >= self.height || rx >= self.width {
+                continue;
+            }
 
             let cell = &mut grid.cells[ry][rx];
             cell.visible = true;

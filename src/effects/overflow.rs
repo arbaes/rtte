@@ -1,11 +1,15 @@
 // Overflow effect — text scrolls/overflows then settles into correct order
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
-use rand::Rng;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
+use rand::Rng;
 
 #[derive(Clone, Copy, PartialEq)]
-enum Phase { Overflow, Settle, Done }
+enum Phase {
+    Overflow,
+    Settle,
+    Done,
+}
 
 struct OverflowRow {
     chars: Vec<(char, Rgb)>,
@@ -31,10 +35,20 @@ impl OverflowEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height, dm) = (grid.width, grid.height, 2usize);
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")], 12,
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
+            12,
         );
         let overflow_gradient = Gradient::new(
-            &[Rgb::from_hex("f2ebc0"), Rgb::from_hex("8dbfb3"), Rgb::from_hex("f2ebc0")], 12,
+            &[
+                Rgb::from_hex("f2ebc0"),
+                Rgb::from_hex("8dbfb3"),
+                Rgb::from_hex("f2ebc0"),
+            ],
+            12,
         );
 
         let mut rng = rand::thread_rng();
@@ -52,10 +66,18 @@ impl OverflowEffect {
             let mut shuffled_indices: Vec<usize> = (0..height).collect();
             shuffled_indices.shuffle(&mut rng);
             for &idx in &shuffled_indices {
-                let row_chars: Vec<(char, Rgb)> = (0..width).map(|x| {
-                    let color = overflow_gradient.color_at_coord(rows.len(), 0, height * (cycles + 1), 1, GradientDirection::Vertical);
-                    (original[idx][x], color)
-                }).collect();
+                let row_chars: Vec<(char, Rgb)> = (0..width)
+                    .map(|x| {
+                        let color = overflow_gradient.color_at_coord(
+                            rows.len(),
+                            0,
+                            height * (cycles + 1),
+                            1,
+                            GradientDirection::Vertical,
+                        );
+                        (original[idx][x], color)
+                    })
+                    .collect();
                 rows.push(OverflowRow {
                     chars: row_chars,
                     y_offset: (height + rows.len()) as f64,
@@ -65,10 +87,18 @@ impl OverflowEffect {
 
         // Add final correct rows
         for y in 0..height {
-            let row_chars: Vec<(char, Rgb)> = (0..width).map(|x| {
-                let color = final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
-                (original[y][x], color)
-            }).collect();
+            let row_chars: Vec<(char, Rgb)> = (0..width)
+                .map(|x| {
+                    let color = final_gradient.color_at_coord(
+                        y,
+                        x,
+                        height,
+                        width,
+                        GradientDirection::Vertical,
+                    );
+                    (original[y][x], color)
+                })
+                .collect();
             rows.push(OverflowRow {
                 chars: row_chars,
                 y_offset: (height + rows.len()) as f64,
@@ -78,9 +108,18 @@ impl OverflowEffect {
         let total = rows.len();
 
         OverflowEffect {
-            original, rows, phase: Phase::Overflow, frame: 0, dm, width, height,
-            scroll_pos: 0.0, total_overflow_rows: total,
-            final_gradient, overflow_gradient, settled_count: 0,
+            original,
+            rows,
+            phase: Phase::Overflow,
+            frame: 0,
+            dm,
+            width,
+            height,
+            scroll_pos: 0.0,
+            total_overflow_rows: total,
+            final_gradient,
+            overflow_gradient,
+            settled_count: 0,
         }
     }
 
@@ -114,20 +153,30 @@ impl OverflowEffect {
                         }
                     }
                 }
-                if all_settled { self.phase = Phase::Done; }
+                if all_settled {
+                    self.phase = Phase::Done;
+                }
             }
             Phase::Done => return true,
         }
 
         // Render
-        for row in &mut grid.cells { for cell in row { cell.visible = false; } }
+        for row in &mut grid.cells {
+            for cell in row {
+                cell.visible = false;
+            }
+        }
         for overflow_row in &self.rows {
             let screen_y = overflow_row.y_offset - self.scroll_pos;
             let ry = screen_y.round() as isize;
-            if ry < 0 || ry >= self.height as isize { continue; }
+            if ry < 0 || ry >= self.height as isize {
+                continue;
+            }
             let ry = ry as usize;
             for (x, &(ch, color)) in overflow_row.chars.iter().enumerate() {
-                if x >= self.width { break; }
+                if x >= self.width {
+                    break;
+                }
                 let cell = &mut grid.cells[ry][x];
                 cell.visible = true;
                 cell.ch = ch;

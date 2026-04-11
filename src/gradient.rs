@@ -1,6 +1,5 @@
 /// Color gradient system matching TTE's gradient engine.
 /// Supports multi-stop linear interpolation, coordinate mapping, and direction-based gradients.
-
 use crossterm::style::Color;
 
 /// An RGB color for interpolation
@@ -25,7 +24,11 @@ impl Rgb {
     }
 
     pub fn to_crossterm(self) -> Color {
-        Color::Rgb { r: self.r, g: self.g, b: self.b }
+        Color::Rgb {
+            r: self.r,
+            g: self.g,
+            b: self.b,
+        }
     }
 
     /// Adjust brightness by a factor (0.0 = black, 1.0 = same, 2.0 = double)
@@ -128,14 +131,26 @@ impl Gradient {
     ) -> Rgb {
         let t = match direction {
             GradientDirection::Vertical => {
-                if max_row == 0 { 0.0 } else { 1.0 - row as f64 / max_row as f64 }
+                if max_row == 0 {
+                    0.0
+                } else {
+                    1.0 - row as f64 / max_row as f64
+                }
             }
             GradientDirection::Horizontal => {
-                if max_col == 0 { 0.0 } else { col as f64 / max_col as f64 }
+                if max_col == 0 {
+                    0.0
+                } else {
+                    col as f64 / max_col as f64
+                }
             }
             GradientDirection::Diagonal => {
                 let max = max_row + max_col;
-                if max == 0 { 0.0 } else { (row + col) as f64 / max as f64 }
+                if max == 0 {
+                    0.0
+                } else {
+                    (row + col) as f64 / max as f64
+                }
             }
             GradientDirection::Radial => {
                 let cr = max_row as f64 / 2.0;
@@ -235,7 +250,10 @@ mod tests {
         let g = Gradient::new(&[Rgb::new(0, 0, 0), Rgb::new(255, 0, 0)], 10);
         let left = g.color_at_coord(0, 0, 4, 4, GradientDirection::Horizontal);
         let right = g.color_at_coord(0, 3, 4, 4, GradientDirection::Horizontal);
-        assert!(right.r > left.r, "right should be brighter in horizontal gradient");
+        assert!(
+            right.r > left.r,
+            "right should be brighter in horizontal gradient"
+        );
     }
 }
 
@@ -269,10 +287,18 @@ pub mod palettes {
         Rgb::from_hex("eda000")
     }
     pub fn default_final() -> Vec<Rgb> {
-        vec![Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")]
+        vec![
+            Rgb::from_hex("8A008A"),
+            Rgb::from_hex("00D1FF"),
+            Rgb::from_hex("FFFFFF"),
+        ]
     }
     pub fn purple_cyan_white() -> Vec<Rgb> {
-        vec![Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")]
+        vec![
+            Rgb::from_hex("8A008A"),
+            Rgb::from_hex("00D1FF"),
+            Rgb::from_hex("FFFFFF"),
+        ]
     }
     pub fn rainbow() -> Vec<Rgb> {
         vec![

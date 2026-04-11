@@ -1,16 +1,32 @@
 // Bubbles effect — faithful TTE reimplementation
 // Characters grouped into bubbles, float upward, pop, and settle
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 const BUBBLE_COLORS: [Rgb; 4] = [
-    Rgb { r: 0xd3, g: 0x3a, b: 0xff },
-    Rgb { r: 0x73, g: 0x95, b: 0xc4 },
-    Rgb { r: 0x43, g: 0xc2, b: 0xa7 },
-    Rgb { r: 0x02, g: 0xff, b: 0x7f },
+    Rgb {
+        r: 0xd3,
+        g: 0x3a,
+        b: 0xff,
+    },
+    Rgb {
+        r: 0x73,
+        g: 0x95,
+        b: 0xc4,
+    },
+    Rgb {
+        r: 0x43,
+        g: 0xc2,
+        b: 0xa7,
+    },
+    Rgb {
+        r: 0x02,
+        g: 0xff,
+        b: 0x7f,
+    },
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -68,10 +84,7 @@ impl BubblesEffect {
         let height = grid.height;
         let dm: usize = 2;
 
-        let final_gradient = Gradient::new(
-            &[Rgb::from_hex("d33aff"), Rgb::from_hex("02ff7f")],
-            12,
-        );
+        let final_gradient = Gradient::new(&[Rgb::from_hex("d33aff"), Rgb::from_hex("02ff7f")], 12);
 
         let mut rng = rand::thread_rng();
         let total = width * height;
@@ -79,9 +92,8 @@ impl BubblesEffect {
         let mut chars: Vec<BubbleChar> = Vec::with_capacity(total);
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Diagonal,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
                 chars.push(BubbleChar {
                     final_y: y,
                     final_x: x,
@@ -170,7 +182,9 @@ impl BubblesEffect {
 
         // Tick bubbles
         for bubble in &mut self.bubbles {
-            if !bubble.active || bubble.popped { continue; }
+            if !bubble.active || bubble.popped {
+                continue;
+            }
 
             bubble.progress += bubble.speed;
             bubble.angle += 0.02;
@@ -190,12 +204,15 @@ impl BubblesEffect {
 
             let eased = easing::in_out_sine(bubble.progress);
             let new_y = bubble.anchor_y + (bubble.target_y - bubble.anchor_y) * eased;
-            let dy = new_y - (bubble.anchor_y + (bubble.target_y - bubble.anchor_y)
-                * easing::in_out_sine((bubble.progress - bubble.speed).max(0.0)));
+            let dy = new_y
+                - (bubble.anchor_y
+                    + (bubble.target_y - bubble.anchor_y)
+                        * easing::in_out_sine((bubble.progress - bubble.speed).max(0.0)));
 
             // Update char positions (orbit around anchor)
             for (i, &ci) in bubble.char_indices.iter().enumerate() {
-                let base_angle = (i as f64 / bubble.char_indices.len() as f64) * std::f64::consts::TAU;
+                let base_angle =
+                    (i as f64 / bubble.char_indices.len() as f64) * std::f64::consts::TAU;
                 let angle = base_angle + bubble.angle;
                 self.chars[ci].cur_y += dy;
                 self.chars[ci].cur_x = bubble.anchor_x + angle.cos() * bubble.radius;
@@ -234,7 +251,9 @@ impl BubblesEffect {
                     let eased = easing::in_out_expo(ch.settle_progress);
                     ch.cur_y = ch.pop_y + (ch.final_y as f64 - ch.pop_y) * eased;
                     ch.cur_x = ch.pop_x + (ch.final_x as f64 - ch.pop_x) * eased;
-                    if ch.phase != BubbleCharPhase::Done { all_done = false; }
+                    if ch.phase != BubbleCharPhase::Done {
+                        all_done = false;
+                    }
                 }
                 BubbleCharPhase::Done => {}
             }
@@ -250,9 +269,13 @@ impl BubblesEffect {
         for ch in &self.chars {
             let ry = ch.cur_y.round() as isize;
             let rx = ch.cur_x.round() as isize;
-            if ry < 0 || rx < 0 { continue; }
+            if ry < 0 || rx < 0 {
+                continue;
+            }
             let (ry, rx) = (ry as usize, rx as usize);
-            if ry >= self.height || rx >= self.width { continue; }
+            if ry >= self.height || rx >= self.width {
+                continue;
+            }
 
             let cell = &mut grid.cells[ry][rx];
             cell.visible = true;
@@ -273,7 +296,8 @@ impl BubblesEffect {
                 BubbleCharPhase::Settling => {
                     cell.ch = ch.original_ch;
                     let t = ch.settle_progress;
-                    cell.fg = Some(Rgb::lerp(Rgb::new(255, 255, 255), ch.final_color, t).to_crossterm());
+                    cell.fg =
+                        Some(Rgb::lerp(Rgb::new(255, 255, 255), ch.final_color, t).to_crossterm());
                 }
                 BubbleCharPhase::Done => {
                     cell.ch = ch.original_ch;

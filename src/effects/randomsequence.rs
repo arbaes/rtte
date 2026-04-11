@@ -5,7 +5,7 @@
 // final positional color.
 
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
 
 struct CharAnim {
@@ -47,9 +47,9 @@ impl CharAnim {
 }
 
 pub struct RandomSequenceEffect {
-    chars: Vec<CharAnim>,       // flat list of all chars
-    reveal_order: Vec<usize>,   // indices into chars, shuffled
-    reveal_pos: usize,          // how far through reveal_order we've gone
+    chars: Vec<CharAnim>,     // flat list of all chars
+    reveal_order: Vec<usize>, // indices into chars, shuffled
+    reveal_pos: usize,        // how far through reveal_order we've gone
     chars_per_tick: usize,
     width: usize,
     height: usize,
@@ -62,7 +62,11 @@ impl RandomSequenceEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             12,
         );
 
@@ -75,9 +79,8 @@ impl RandomSequenceEffect {
         let mut chars: Vec<CharAnim> = Vec::with_capacity(total_chars);
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
 
                 // Build 7-step gradient from starting_color to final_color
                 let mut gradient_colors = Vec::with_capacity(gradient_steps);

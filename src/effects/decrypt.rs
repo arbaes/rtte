@@ -4,7 +4,7 @@
 // Each character independently transitions through scenes via events.
 
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 
 #[derive(Clone)]
@@ -60,12 +60,16 @@ impl CharAnim {
     }
 
     fn current_symbol(&self) -> char {
-        if self.scene.is_empty() { return self.original_ch; }
+        if self.scene.is_empty() {
+            return self.original_ch;
+        }
         self.scene[self.scene_idx].symbol
     }
 
     fn current_color(&self) -> Rgb {
-        if self.scene.is_empty() { return self.final_color; }
+        if self.scene.is_empty() {
+            return self.final_color;
+        }
         self.scene[self.scene_idx].color
     }
 
@@ -134,7 +138,11 @@ impl DecryptEffect {
 
         // TTE default: single orange color
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("ffffff")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("ffffff"),
+            ],
             12,
         );
 
@@ -160,9 +168,8 @@ impl DecryptEffect {
         for y in 0..height {
             for x in 0..width {
                 let original_ch = grid.cells[y][x].ch;
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 let cipher_color = cipher_colors[rng.gen_range(0..cipher_colors.len())];
 
                 // Build typing scene: 4 block chars + 1 encrypted symbol
@@ -181,40 +188,44 @@ impl DecryptEffect {
                 });
 
                 // Build fast_decrypt scene: 80 random symbols
-                let fast_decrypt_scene: Vec<SceneFrame> = (0..80).map(|_| {
-                    SceneFrame {
+                let fast_decrypt_scene: Vec<SceneFrame> = (0..80)
+                    .map(|_| SceneFrame {
                         symbol: encrypted_symbols[rng.gen_range(0..encrypted_symbols.len())],
                         color: cipher_color,
                         duration: 2 * dm,
-                    }
-                }).collect();
+                    })
+                    .collect();
 
                 // Build slow_decrypt scene: 1-15 iterations with variable timing
                 let slow_iters = rng.gen_range(1..=15);
-                let slow_decrypt_scene: Vec<SceneFrame> = (0..slow_iters).map(|_| {
-                    let dur = if rng.gen_range(0..100) < 30 {
-                        rng.gen_range(35..=60) * dm
-                    } else {
-                        rng.gen_range(3..=6) * dm
-                    };
-                    SceneFrame {
-                        symbol: encrypted_symbols[rng.gen_range(0..encrypted_symbols.len())],
-                        color: cipher_color,
-                        duration: dur,
-                    }
-                }).collect();
+                let slow_decrypt_scene: Vec<SceneFrame> = (0..slow_iters)
+                    .map(|_| {
+                        let dur = if rng.gen_range(0..100) < 30 {
+                            rng.gen_range(35..=60) * dm
+                        } else {
+                            rng.gen_range(3..=6) * dm
+                        };
+                        SceneFrame {
+                            symbol: encrypted_symbols[rng.gen_range(0..encrypted_symbols.len())],
+                            color: cipher_color,
+                            duration: dur,
+                        }
+                    })
+                    .collect();
 
                 // Build discovered scene: white → final_color gradient
                 let discover_steps = 10;
-                let mut discovered_scene: Vec<SceneFrame> = (0..discover_steps).map(|i| {
-                    let t = (i + 1) as f64 / discover_steps as f64;
-                    let color = Rgb::lerp(Rgb::new(255, 255, 255), final_color, t);
-                    SceneFrame {
-                        symbol: original_ch,
-                        color,
-                        duration: 2 * dm,
-                    }
-                }).collect();
+                let mut discovered_scene: Vec<SceneFrame> = (0..discover_steps)
+                    .map(|i| {
+                        let t = (i + 1) as f64 / discover_steps as f64;
+                        let color = Rgb::lerp(Rgb::new(255, 255, 255), final_color, t);
+                        SceneFrame {
+                            symbol: original_ch,
+                            color,
+                            duration: 2 * dm,
+                        }
+                    })
+                    .collect();
                 // Final hold
                 discovered_scene.push(SceneFrame {
                     symbol: original_ch,
@@ -223,7 +234,9 @@ impl DecryptEffect {
                 });
 
                 chars.push(CharAnim {
-                    y, x, original_ch,
+                    y,
+                    x,
+                    original_ch,
                     visible: false,
                     phase: CharPhase::Pending,
                     scene: typing_scene,
@@ -263,7 +276,9 @@ impl DecryptEffect {
                 // 75% chance to type this frame
                 if self.typing_pos < self.typing_order.len() && rng.gen_range(0..100) <= 75 {
                     for _ in 0..self.typing_speed {
-                        if self.typing_pos >= self.typing_order.len() { break; }
+                        if self.typing_pos >= self.typing_order.len() {
+                            break;
+                        }
 
                         // Skip spaces
                         while self.typing_pos < self.typing_order.len() {
@@ -277,7 +292,9 @@ impl DecryptEffect {
                                 break;
                             }
                         }
-                        if self.typing_pos >= self.typing_order.len() { break; }
+                        if self.typing_pos >= self.typing_order.len() {
+                            break;
+                        }
 
                         let idx = self.typing_order[self.typing_pos];
                         self.typing_pos += 1;
@@ -306,10 +323,11 @@ impl DecryptEffect {
             }
             EffectPhase::Decrypting => {
                 // Check completion
-                let all_done = self.active_indices.is_empty() ||
-                    self.active_indices.iter().all(|&idx| {
-                        self.chars[idx].phase == CharPhase::Done
-                    });
+                let all_done = self.active_indices.is_empty()
+                    || self
+                        .active_indices
+                        .iter()
+                        .all(|&idx| self.chars[idx].phase == CharPhase::Done);
                 if all_done {
                     self.phase = EffectPhase::Complete;
                 }
@@ -338,7 +356,8 @@ impl DecryptEffect {
         }
 
         // Remove finished chars from active list
-        self.active_indices.retain(|&idx| self.chars[idx].phase != CharPhase::Done);
+        self.active_indices
+            .retain(|&idx| self.chars[idx].phase != CharPhase::Done);
 
         // Render to grid
         for ca in &self.chars {

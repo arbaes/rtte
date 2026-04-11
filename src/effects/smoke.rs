@@ -2,7 +2,7 @@
 // BFS flood fill with smoke symbols, then settle to final color
 
 use crate::engine::Grid;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;
 use std::collections::VecDeque;
 
@@ -47,7 +47,11 @@ impl SmokeEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("8A008A"), Rgb::from_hex("00D1FF"), Rgb::from_hex("FFFFFF")],
+            &[
+                Rgb::from_hex("8A008A"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("FFFFFF"),
+            ],
             12,
         );
         let smoke_gradient = Gradient::new(
@@ -59,11 +63,11 @@ impl SmokeEffect {
         for y in 0..height {
             let mut row = Vec::with_capacity(width);
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 row.push(SmokeChar {
-                    y, x,
+                    y,
+                    x,
                     original_ch: grid.cells[y][x].ch,
                     final_color,
                     phase: SmokePhase::Waiting,
@@ -142,7 +146,9 @@ impl SmokeEffect {
         for row in &mut self.chars {
             for ch in row {
                 match ch.phase {
-                    SmokePhase::Waiting => { all_done = false; }
+                    SmokePhase::Waiting => {
+                        all_done = false;
+                    }
                     SmokePhase::Smoking => {
                         ch.frame += 1;
                         if ch.frame >= ch.smoke_total {
@@ -170,7 +176,9 @@ impl SmokeEffect {
 
         for row in &self.chars {
             for ch in row {
-                if ch.y >= grid.height || ch.x >= grid.width { continue; }
+                if ch.y >= grid.height || ch.x >= grid.width {
+                    continue;
+                }
                 let cell = &mut grid.cells[ch.y][ch.x];
                 cell.visible = true;
 
@@ -182,13 +190,16 @@ impl SmokeEffect {
                     SmokePhase::Smoking => {
                         let sym_idx = (ch.frame / (3 * self.dm).max(1)) % SMOKE_SYMBOLS.len();
                         cell.ch = SMOKE_SYMBOLS[sym_idx];
-                        let color_idx = (ch.frame * spec_len / ch.smoke_total.max(1)).min(spec_len - 1);
+                        let color_idx =
+                            (ch.frame * spec_len / ch.smoke_total.max(1)).min(spec_len - 1);
                         cell.fg = Some(self.smoke_gradient.spectrum()[color_idx].to_crossterm());
                     }
                     SmokePhase::Paint => {
                         cell.ch = ch.original_ch;
                         let t = ch.frame as f64 / ch.paint_total as f64;
-                        cell.fg = Some(Rgb::lerp(Rgb::new(255, 255, 255), ch.final_color, t).to_crossterm());
+                        cell.fg = Some(
+                            Rgb::lerp(Rgb::new(255, 255, 255), ch.final_color, t).to_crossterm(),
+                        );
                     }
                     SmokePhase::Done => {
                         cell.ch = ch.original_ch;

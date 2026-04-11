@@ -1,9 +1,9 @@
 // Slide effect — faithful TTE reimplementation
 // Characters slide in from outside terminal, grouped by row, with in_out_quad easing
 
-use crate::engine::Grid;
 use crate::easing;
-use crate::gradient::{Gradient, Rgb, GradientDirection};
+use crate::engine::Grid;
+use crate::gradient::{Gradient, GradientDirection, Rgb};
 
 struct SlideChar {
     final_y: usize,
@@ -20,7 +20,7 @@ struct SlideChar {
 
 pub struct SlideEffect {
     chars: Vec<SlideChar>,
-    groups: Vec<Vec<usize>>,  // row groups
+    groups: Vec<Vec<usize>>, // row groups
     gap: usize,
     gap_counter: usize,
     activated_up_to: usize,
@@ -35,7 +35,11 @@ impl SlideEffect {
         let dm: usize = 2;
 
         let final_gradient = Gradient::new(
-            &[Rgb::from_hex("833ab4"), Rgb::from_hex("fd1d1d"), Rgb::from_hex("fcb045")],
+            &[
+                Rgb::from_hex("833ab4"),
+                Rgb::from_hex("fd1d1d"),
+                Rgb::from_hex("fcb045"),
+            ],
             12,
         );
 
@@ -47,9 +51,8 @@ impl SlideEffect {
 
         for y in 0..height {
             for x in 0..width {
-                let final_color = final_gradient.color_at_coord(
-                    y, x, height, width, GradientDirection::Vertical,
-                );
+                let final_color =
+                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 // Start from left edge (negative)
                 let start_x = -(width as f64) + x as f64 * 0.1;
                 let dist = (x as f64 - start_x).abs().max(1.0);
@@ -101,7 +104,9 @@ impl SlideEffect {
         // Tick movement
         let mut all_done = self.activated_up_to >= self.groups.len();
         for ch in &mut self.chars {
-            if !ch.active || ch.done { continue; }
+            if !ch.active || ch.done {
+                continue;
+            }
             ch.progress += ch.speed;
             if ch.progress >= 1.0 {
                 ch.progress = 1.0;
@@ -109,7 +114,9 @@ impl SlideEffect {
             }
             let eased = easing::in_out_quad(ch.progress);
             ch.cur_x = ch.start_x + (ch.final_x as f64 - ch.start_x) * eased;
-            if !ch.done { all_done = false; }
+            if !ch.done {
+                all_done = false;
+            }
         }
 
         // Render
@@ -120,7 +127,9 @@ impl SlideEffect {
         }
 
         for ch in &self.chars {
-            if !ch.active { continue; }
+            if !ch.active {
+                continue;
+            }
             let rx = ch.cur_x.round() as isize;
             let ry = ch.final_y;
             if rx >= 0 && (rx as usize) < self.width && ry < self.height {
