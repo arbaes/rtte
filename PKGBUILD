@@ -3,7 +3,7 @@
 pkgname=rtte-git
 pkgver=r1.0000000
 pkgrel=1
-pkgdesc="Rust reimplementation of Terminal Text Effects (TTE)"
+pkgdesc="Rust reimplementation of TerminalTextEffects (TTE)"
 arch=('x86_64')
 url="https://github.com/arbaes/rtte"
 license=('MIT')
@@ -21,8 +21,6 @@ pkgver() {
 
 build() {
     cd "${pkgname}"
-    # --locked uses the committed Cargo.lock for reproducible builds;
-    # fall back without it if the lockfile is absent or stale.
     cargo build --release --locked 2>/dev/null || cargo build --release
 }
 
