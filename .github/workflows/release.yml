@@ -35,11 +35,9 @@ jobs:
           restore-keys: arch-cargo-release-
 
       - name: Build (release)
-        run: cargo build --release --locked
-
+        run: cargo build --release 
       - name: Run tests before publishing
-        run: cargo test --locked
-
+        run: cargo test 
       # Rename the binary to include the version tag so the asset name is clear
       - name: Rename binary
         run: |

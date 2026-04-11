@@ -32,11 +32,9 @@ jobs:
           restore-keys: arch-cargo-
 
       - name: Build (release)
-        run: cargo build --release --locked
-
+        run: cargo build --release 
       - name: Run tests
-        run: cargo test --locked
-
+        run: cargo test 
   lint:
     name: Clippy & Format
     runs-on: ubuntu-latest
