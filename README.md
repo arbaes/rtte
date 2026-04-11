@@ -1,5 +1,12 @@
-# RTTE (Rust TextTerminalEffects)
+<div align="center"><pre>
+• __________   __    __ ___________ •
+• \______   \_/  |__/  |\_   _____/ •
+•  |       _/\   __\   __\    __)_  •
+•  |    |   \ |  |  |  | |        \ •
+•  |____|___/ |__|  |__|/_________/ •
+</pre></div>
 
+# *R*usted *T*erminal *T*ext *E*ffects
 Rust reimplementation of [TerminalTextEffects (TTE)](https://github.com/ChrisBuilds/terminaltexteffects) by [ChrisBuilds](https://github.com/ChrisBuilds).
 
 ---
