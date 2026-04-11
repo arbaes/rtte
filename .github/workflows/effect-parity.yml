@@ -85,11 +85,11 @@ jobs:
 
       - name: Update badge
         if: always() && github.ref == 'refs/heads/master'
-        uses: schneegans/dynamic-badges-action@v1.7.0
+        uses: schneegans/dynamic-badges-action@v1.8.0
         with:
           auth: ${{ secrets.GIST_SECRET }}
-          gistID: f4a0f38efab6b4df99bfcba1f9c2cd2e
-          filename: effect-parity.json
+          gistID: edf5217236148a1aa1923659ac1302eb
+          filename: tte-effect-parity.json
           label: TTE Effect Parity
           message: "${{ steps.parity.outputs.rtte_count }}/${{ steps.parity.outputs.tte_count }}"
           color: "${{ steps.parity.outputs.parity == 'true' && 'brightgreen' || 'red' }}"
