@@ -9,6 +9,7 @@
 # *R*usted *T*erminal *T*ext *E*ffects
 Rust reimplementation of [TerminalTextEffects (TTE)](https://github.com/ChrisBuilds/terminaltexteffects) by [ChrisBuilds](https://github.com/ChrisBuilds).
 
+[![CI](https://github.com/arbaes/rtte/actions/workflows/ci.yml/badge.svg)](https://github.com/arbaes/rtte/actions/workflows/ci.yml)
 ---
 
 ## Disclaimer
