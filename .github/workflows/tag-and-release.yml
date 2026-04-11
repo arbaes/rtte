@@ -104,6 +104,6 @@ jobs:
           name: "rtte ${{ needs.tag.outputs.tag_name }}"
           tag_name: ${{ needs.tag.outputs.tag_name }}
           body: |
-            See [README](https://github.com/${{ github.repository }}/blob/main/README.md) for installation instructions.
+            See [README](https://github.com/${{ github.repository }}/blob/master/README.md) for installation instructions.
           files: dist/rtte-${{ needs.tag.outputs.tag_name }}-x86_64-linux
           generate_release_notes: true
