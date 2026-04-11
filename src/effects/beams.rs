@@ -93,14 +93,20 @@ impl Group {
         self.next_idx >= self.char_indices.len()
     }
 
-    /// Advance the smooth counter and return indices of newly-activated chars
+    /// Advance the smooth counter and return indices of newly-activated chars.
+    /// Matches TTE: only activate when int(counter) > 1, then activate int(counter) chars.
     fn tick(&mut self) -> Vec<usize> {
         let mut activated = Vec::new();
         self.counter += self.speed;
-        while self.counter >= 1.0 && self.next_idx < self.char_indices.len() {
-            activated.push(self.char_indices[self.next_idx]);
-            self.next_idx += 1;
-            self.counter -= 1.0;
+        let count = self.counter as usize;
+        if count > 1 {
+            for _ in 0..count {
+                if self.next_idx < self.char_indices.len() {
+                    activated.push(self.char_indices[self.next_idx]);
+                    self.next_idx += 1;
+                    self.counter -= 1.0;
+                }
+            }
         }
         activated
     }
@@ -127,244 +133,7 @@ enum Phase {
     Complete,
 }
 
-impl BeamsState {
-    pub fn new(grid: &Grid) -> Self {
-        let mut rng = rand::thread_rng();
-        let width = grid.width;
-        let height = grid.height;
-
-        // Build beam gradient: white → cyan → purple
-        // steps=(2, 6) → 2 steps white→cyan, 6 steps cyan→purple = ~10 colors
-        let beam_gradient = Gradient::new(
-            &[
-                Rgb::from_hex("ffffff"),
-                Rgb::from_hex("00D1FF"),
-                Rgb::from_hex("8A008A"),
-            ],
-            4, // gives us about 8-10 spectrum colors
-        );
-        let beam_spectrum = beam_gradient.spectrum().to_vec();
-
-        // Build final gradient: purple → cyan → white, VERTICAL mapping
-        let final_gradient = Gradient::new(
-            &[
-                Rgb::from_hex("8A008A"),
-                Rgb::from_hex("00D1FF"),
-                Rgb::from_hex("ffffff"),
-            ],
-            12,
-        );
-
-        let beam_row_symbols = ['▂', '▁', '_'];
-        let beam_col_symbols = ['▌', '▍', '▎', '▏'];
-        let beam_gradient_frames = 2; // ticks per beam symbol color
-        let final_gradient_frames = 4; // ticks per brighten step
-
-        // --- Build per-character state ---
-        let mut chars = Vec::with_capacity(height * width);
-        for y in 0..height {
-            for x in 0..width {
-                let original_ch = grid.cells[y][x].ch;
-                let final_color =
-                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
-                let faded_color = final_color.adjust_brightness(0.3);
-
-                chars.push(CharAnim {
-                    y,
-                    x,
-                    original_ch,
-                    visible: false,
-                    scene: Vec::new(), // will be set when activated
-                    scene_idx: 0,
-                    hold_count: 0,
-                    scene_complete: false,
-                    final_color,
-                    faded_color,
-                    activated: false,
-                    brightening: false,
-                });
-            }
-        }
-
-        // Helper: build beam_row scene for a character
-        let build_row_scene = |ch: char, faded: Rgb, beam_spec: &[Rgb]| -> Vec<SceneFrame> {
-            let mut frames = Vec::new();
-            // Beam symbols with gradient colors
-            for (i, &sym) in beam_row_symbols.iter().enumerate() {
-                let ci = if beam_spec.is_empty() {
-                    0
-                } else {
-                    i * beam_spec.len() / beam_row_symbols.len().max(1)
-                };
-                let color = beam_spec[ci.min(beam_spec.len() - 1)];
-                frames.push(SceneFrame {
-                    symbol: sym,
-                    color,
-                    duration: beam_gradient_frames,
-                });
-            }
-            // Then the actual character at faded brightness
-            frames.push(SceneFrame {
-                symbol: ch,
-                color: faded,
-                duration: beam_gradient_frames,
-            });
-            frames
-        };
-
-        let build_col_scene = |ch: char, faded: Rgb, beam_spec: &[Rgb]| -> Vec<SceneFrame> {
-            let mut frames = Vec::new();
-            for (i, &sym) in beam_col_symbols.iter().enumerate() {
-                let ci = if beam_spec.is_empty() {
-                    0
-                } else {
-                    i * beam_spec.len() / beam_col_symbols.len().max(1)
-                };
-                let color = beam_spec[ci.min(beam_spec.len() - 1)];
-                frames.push(SceneFrame {
-                    symbol: sym,
-                    color,
-                    duration: beam_gradient_frames,
-                });
-            }
-            frames.push(SceneFrame {
-                symbol: ch,
-                color: faded,
-                duration: beam_gradient_frames,
-            });
-            frames
-        };
-
-        let build_brighten_scene = |ch: char, faded: Rgb, final_c: Rgb| -> Vec<SceneFrame> {
-            let mut frames = Vec::new();
-            let steps = 10;
-            for i in 0..steps {
-                let t = i as f64 / (steps - 1) as f64;
-                let color = Rgb::lerp(faded, final_c, t);
-                frames.push(SceneFrame {
-                    symbol: ch,
-                    color,
-                    duration: final_gradient_frames,
-                });
-            }
-            frames
-        };
-
-        // --- Build groups ---
-        let mut groups: Vec<Group> = Vec::new();
-
-        // ROW groups
-        for y in 0..height {
-            let mut indices: Vec<usize> = (0..width).map(|x| y * width + x).collect();
-            // 50% chance to reverse
-            if rng.gen_bool(0.5) {
-                indices.reverse();
-            }
-
-            // Pre-build row scenes for each char in this group
-            for &idx in &indices {
-                let ca = &chars[idx];
-                let scene = build_row_scene(ca.original_ch, ca.faded_color, &beam_spectrum);
-                // Store scene — but only set it when the char is first activated
-                // We'll store row scenes in a side buffer
-                // Actually: store both scenes and pick when activating
-                // For now, we just store the row scene
-                let _ = scene; // We'll set it during activation
-            }
-
-            let speed = rng.gen_range(15..=60) as f64 * 0.1;
-            groups.push(Group {
-                char_indices: indices,
-                next_idx: 0,
-                direction: Direction::Row,
-                speed,
-                counter: 0.0,
-            });
-        }
-
-        // COLUMN groups
-        for x in 0..width {
-            let mut indices: Vec<usize> = (0..height).map(|y| y * width + x).collect();
-            if rng.gen_bool(0.5) {
-                indices.reverse();
-            }
-            let speed = rng.gen_range(9..=15) as f64 * 0.1;
-            groups.push(Group {
-                char_indices: indices,
-                next_idx: 0,
-                direction: Direction::Column,
-                speed,
-                counter: 0.0,
-            });
-        }
-
-        // Shuffle all groups
-        use rand::seq::SliceRandom;
-        groups.shuffle(&mut rng);
-
-        // Pre-store scenes for each char based on which group activates them first
-        // We'll lazy-build scenes on activation
-        // Store beam_spectrum and scene builders as captured state
-        // Actually: we need to store beam scenes per-char. Since a char can be in both
-        // a row group and a column group, the first activation sets the scene.
-        // We'll pre-compute both scene types and select at activation time.
-
-        // Store pre-computed scenes in a parallel array
-        // row_scenes[idx] and col_scenes[idx] for each char
-        let _row_scenes: Vec<Vec<SceneFrame>> = chars
-            .iter()
-            .map(|ca| build_row_scene(ca.original_ch, ca.faded_color, &beam_spectrum))
-            .collect();
-        let _col_scenes: Vec<Vec<SceneFrame>> = chars
-            .iter()
-            .map(|ca| build_col_scene(ca.original_ch, ca.faded_color, &beam_spectrum))
-            .collect();
-        let _brighten_scenes: Vec<Vec<SceneFrame>> = chars
-            .iter()
-            .map(|ca| build_brighten_scene(ca.original_ch, ca.faded_color, ca.final_color))
-            .collect();
-
-        // Store scenes in chars — we'll use a two-scene approach:
-        // scene is initially empty, set on first activation based on Direction
-        // When brighten phase hits, replace scene with brighten_scene
-        // We need to keep brighten_scenes accessible, so let's store them in state
-
-        // For group activation, we need to know which scene to set.
-        // Let's tag each group with its direction, and on activation:
-        //   if !char.activated: set scene = row_scenes or col_scenes, mark activated
-        //   if char.activated: reset scene (re-trigger)
-
-        // Store the pre-computed scenes in the state
-        // We'll use a simple approach: store row_scenes, col_scenes, brighten_scenes as fields
-
-        // --- Build diagonal groups for final wipe ---
-        let mut diag_map: std::collections::BTreeMap<usize, Vec<usize>> =
-            std::collections::BTreeMap::new();
-        for y in 0..height {
-            for x in 0..width {
-                let diag = x + y;
-                diag_map.entry(diag).or_default().push(y * width + x);
-            }
-        }
-        let final_wipe_groups: Vec<Vec<usize>> = diag_map.into_values().collect();
-
-        BeamsState {
-            chars,
-            pending_groups: groups,
-            active_groups: Vec::new(),
-            final_wipe_groups,
-            delay: 0,
-            delay_max: 6, // beam_delay
-            phase: Phase::Beams,
-            final_wipe_speed: 3,
-            width,
-            height,
-            // We need to store the pre-computed scenes — add fields
-        }
-    }
-}
-
-// We need a wrapper to hold scenes separately since CharAnim doesn't own them until activation
+// Wrapper holding pre-computed scenes separately since CharAnim doesn't own them until activation
 pub struct BeamsEffect {
     pub state: BeamsState,
     row_scenes: Vec<Vec<SceneFrame>>,
@@ -400,8 +169,8 @@ impl BeamsEffect {
 
         let beam_row_symbols = ['▂', '▁', '_'];
         let beam_col_symbols = ['▌', '▍', '▎', '▏'];
-        let beam_gradient_frames: usize = 4;
-        let final_gradient_frames: usize = 8;
+        let beam_gradient_frames: usize = 2;
+        let final_gradient_frames: usize = 4;
 
         // Build per-char state
         let mut chars = Vec::with_capacity(height * width);
@@ -429,24 +198,35 @@ impl BeamsEffect {
         }
 
         // Pre-compute scenes
+        // TTE uses apply_gradient_to_symbols which creates 1 frame per gradient color,
+        // distributing symbols cyclically across them (cyclic_distribution).
+        // Then appends a fade gradient (final_color → faded_color, 11 colors) after beam symbols.
         let row_scenes: Vec<Vec<SceneFrame>> = chars
             .iter()
             .map(|ca| {
                 let mut frames = Vec::new();
-                for (i, &sym) in beam_row_symbols.iter().enumerate() {
-                    let ci = i * beam_spectrum.len() / beam_row_symbols.len().max(1);
-                    let color = beam_spectrum[ci.min(beam_spectrum.len() - 1)];
+                let num_colors = beam_spectrum.len();
+                let num_symbols = beam_row_symbols.len();
+                for (i, &color) in beam_spectrum.iter().enumerate() {
+                    let sym_idx = i * num_symbols / num_colors;
+                    let sym = beam_row_symbols[sym_idx.min(num_symbols - 1)];
                     frames.push(SceneFrame {
                         symbol: sym,
                         color,
                         duration: beam_gradient_frames,
                     });
                 }
-                frames.push(SceneFrame {
-                    symbol: ca.original_ch,
-                    color: ca.faded_color,
-                    duration: beam_gradient_frames,
-                });
+                // Fade gradient: final_color → faded_color (TTE: Gradient(final, faded, steps=10) = 11 colors)
+                let fade_steps = 11usize;
+                for i in 0..fade_steps {
+                    let t = i as f64 / (fade_steps - 1) as f64;
+                    let color = Rgb::lerp(ca.final_color, ca.faded_color, t);
+                    frames.push(SceneFrame {
+                        symbol: ca.original_ch,
+                        color,
+                        duration: beam_gradient_frames,
+                    });
+                }
                 frames
             })
             .collect();
@@ -455,28 +235,36 @@ impl BeamsEffect {
             .iter()
             .map(|ca| {
                 let mut frames = Vec::new();
-                for (i, &sym) in beam_col_symbols.iter().enumerate() {
-                    let ci = i * beam_spectrum.len() / beam_col_symbols.len().max(1);
-                    let color = beam_spectrum[ci.min(beam_spectrum.len() - 1)];
+                let num_colors = beam_spectrum.len();
+                let num_symbols = beam_col_symbols.len();
+                for (i, &color) in beam_spectrum.iter().enumerate() {
+                    let sym_idx = i * num_symbols / num_colors;
+                    let sym = beam_col_symbols[sym_idx.min(num_symbols - 1)];
                     frames.push(SceneFrame {
                         symbol: sym,
                         color,
                         duration: beam_gradient_frames,
                     });
                 }
-                frames.push(SceneFrame {
-                    symbol: ca.original_ch,
-                    color: ca.faded_color,
-                    duration: beam_gradient_frames,
-                });
+                let fade_steps = 11usize;
+                for i in 0..fade_steps {
+                    let t = i as f64 / (fade_steps - 1) as f64;
+                    let color = Rgb::lerp(ca.final_color, ca.faded_color, t);
+                    frames.push(SceneFrame {
+                        symbol: ca.original_ch,
+                        color,
+                        duration: beam_gradient_frames,
+                    });
+                }
                 frames
             })
             .collect();
 
+        // TTE: Gradient(faded, final, steps=10) → 11 spectrum colors
         let brighten_scenes: Vec<Vec<SceneFrame>> = chars
             .iter()
             .map(|ca| {
-                let steps = 10;
+                let steps = 11usize;
                 (0..steps)
                     .map(|i| {
                         let t = i as f64 / (steps - 1) as f64;
@@ -500,7 +288,7 @@ impl BeamsEffect {
             if rng.gen_bool(0.5) {
                 indices.reverse();
             }
-            let speed = rng.gen_range(15..=60) as f64 * 0.05;
+            let speed = rng.gen_range(15..=60) as f64 * 0.1;
             groups.push(Group {
                 char_indices: indices,
                 next_idx: 0,
@@ -516,7 +304,7 @@ impl BeamsEffect {
             if rng.gen_bool(0.5) {
                 indices.reverse();
             }
-            let speed = rng.gen_range(9..=15) as f64 * 0.05;
+            let speed = rng.gen_range(9..=15) as f64 * 0.1;
             groups.push(Group {
                 char_indices: indices,
                 next_idx: 0,
@@ -546,7 +334,7 @@ impl BeamsEffect {
                 active_groups: Vec::new(),
                 final_wipe_groups,
                 delay: 0,
-                delay_max: 12,
+                delay_max: 6,
                 phase: Phase::Beams,
                 final_wipe_speed: 3,
                 width,
@@ -605,7 +393,15 @@ impl BeamsEffect {
                                 };
                                 ca.scene_idx = 0;
                                 ca.hold_count = 0;
+                                let was_complete = ca.scene_complete;
                                 ca.scene_complete = false;
+                                // Re-add to active tracking if scene had completed
+                                // (it was removed by retain). Matches TTE where completed
+                                // chars have no active_scene, so get_next_character returns
+                                // them and they're re-added to active_characters.
+                                if was_complete {
+                                    self.active_char_indices.push(idx);
+                                }
                             }
                         }
                     }
