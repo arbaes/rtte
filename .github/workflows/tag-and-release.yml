@@ -22,7 +22,7 @@ jobs:
       tag_name: ${{ steps.ver.outputs.tag }}
       did_tag: ${{ steps.check.outputs.exists == 'false' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0   # Need full history to check existing tags
 
@@ -71,13 +71,13 @@ jobs:
       - name: Install dependencies
         run: pacman -Syu --noconfirm --needed git base-devel rust cargo
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Pull the exact tag we just created in the previous job
           ref: ${{ needs.tag.outputs.tag_name }}
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
