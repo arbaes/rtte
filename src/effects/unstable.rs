@@ -1,4 +1,8 @@
 // Unstable effect — rumble jitter, explosion, reassembly
+
+pub const NAME: &str = "unstable";
+pub const DESCRIPTION: &str = "Spawn characters jumbled, explode them to the edge of the canvas, then reassemble them in the correct layout.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

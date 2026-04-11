@@ -1,6 +1,9 @@
 // Slide effect — faithful TTE reimplementation
 // Characters slide in from outside terminal, grouped by row, with in_out_quad easing
 
+pub const NAME: &str = "slide";
+pub const DESCRIPTION: &str = "Slide characters into view from outside the terminal.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

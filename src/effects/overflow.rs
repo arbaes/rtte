@@ -1,4 +1,8 @@
 // Overflow effect — text scrolls/overflows then settles into correct order
+
+pub const NAME: &str = "overflow";
+pub const DESCRIPTION: &str = "Input text overflows and scrolls the terminal in a random order until eventually appearing ordered.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;

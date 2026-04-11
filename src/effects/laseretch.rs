@@ -3,6 +3,9 @@
 // A laser beam traces across characters, etching them with heat that cools.
 // Sparks fall from the etch point with bezier motion.
 
+pub const NAME: &str = "laseretch";
+pub const DESCRIPTION: &str = "A laser etches characters onto the terminal.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

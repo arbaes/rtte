@@ -1,6 +1,9 @@
 // ErrorCorrect effect — faithful TTE reimplementation
 // Swap pairs of characters, show error state, block wipe, correct with movement
 
+pub const NAME: &str = "errorcorrect";
+pub const DESCRIPTION: &str = "Some characters start in the wrong position and are corrected in sequence.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;

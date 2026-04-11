@@ -1,6 +1,9 @@
 // Wipe effect — faithful TTE reimplementation
 // Diagonal wipe revealing characters with gradient animation
 
+pub const NAME: &str = "wipe";
+pub const DESCRIPTION: &str = "Wipes the text across the terminal to reveal characters.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

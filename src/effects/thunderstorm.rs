@@ -1,4 +1,8 @@
 // Thunderstorm effect — rain + lightning strikes + sparks, then reveal
+
+pub const NAME: &str = "thunderstorm";
+pub const DESCRIPTION: &str = "Create a thunderstorm in the terminal.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

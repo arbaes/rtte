@@ -1,6 +1,9 @@
 // Pour effect — faithful TTE reimplementation
 // Characters pour from top, falling to their positions with varied speeds
 
+pub const NAME: &str = "pour";
+pub const DESCRIPTION: &str = "Pours the characters into position from the given direction.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

@@ -1,4 +1,8 @@
 // Crumble effect — weaken, dust fall, vacuum up, reset to position
+
+pub const NAME: &str = "crumble";
+pub const DESCRIPTION: &str = "Characters lose color and crumble into dust, vacuumed up, and reformed.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

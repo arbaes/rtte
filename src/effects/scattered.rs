@@ -4,6 +4,9 @@
 // using in_out_back easing. Color transitions from gradient start to final
 // positional color, synced to movement distance.
 
+pub const NAME: &str = "scattered";
+pub const DESCRIPTION: &str = "Text is scattered across the canvas and moves into position.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

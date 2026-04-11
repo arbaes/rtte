@@ -1,6 +1,9 @@
 // BouncyBalls effect — faithful TTE reimplementation
 // Characters drop from above with bounce physics, settle into positions
 
+pub const NAME: &str = "bouncyballs";
+pub const DESCRIPTION: &str = "Characters are bouncy balls falling from the top of the canvas.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

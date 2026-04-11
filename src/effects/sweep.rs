@@ -1,6 +1,9 @@
 // Sweep effect — faithful TTE reimplementation
 // Two-phase sweep: initial gray shimmer R→L, then color sweep L→R
 
+pub const NAME: &str = "sweep";
+pub const DESCRIPTION: &str = "Sweep across the canvas to reveal uncolored text, reverse sweep to color the text.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

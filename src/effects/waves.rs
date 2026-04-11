@@ -1,6 +1,9 @@
 // Waves effect — faithful TTE reimplementation
 // Wave symbols cascade across characters with gradient, then settle to final color
 
+pub const NAME: &str = "waves";
+pub const DESCRIPTION: &str = "Waves travel across the terminal leaving behind the characters.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

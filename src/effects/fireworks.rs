@@ -1,6 +1,9 @@
 // Fireworks effect — faithful TTE reimplementation
 // Shells launch from bottom, explode outward, fall to positions
 
+pub const NAME: &str = "fireworks";
+pub const DESCRIPTION: &str = "Characters launch and explode like fireworks and fall into place.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

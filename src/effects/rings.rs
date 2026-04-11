@@ -1,4 +1,8 @@
 // Rings effect — characters on concentric spinning rings, disperse to positions
+
+pub const NAME: &str = "rings";
+pub const DESCRIPTION: &str = "Characters are dispersed and form into spinning rings.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

@@ -3,6 +3,9 @@
 // Three phases: typing → fast_decrypt → slow_decrypt → discovered
 // Each character independently transitions through scenes via events.
 
+pub const NAME: &str = "decrypt";
+pub const DESCRIPTION: &str = "Display a movie style decryption effect.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;

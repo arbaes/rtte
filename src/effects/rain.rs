@@ -1,6 +1,9 @@
 // Rain effect — faithful TTE reimplementation
 // Characters fall from top with rain symbols, fade to final color on landing
 
+pub const NAME: &str = "rain";
+pub const DESCRIPTION: &str = "Rain characters from the top of the canvas.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

@@ -1,6 +1,9 @@
 // Bubbles effect — faithful TTE reimplementation
 // Characters grouped into bubbles, float upward, pop, and settle
 
+pub const NAME: &str = "bubbles";
+pub const DESCRIPTION: &str = "Characters are formed into bubbles that float down and pop.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

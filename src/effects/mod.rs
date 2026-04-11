@@ -36,40 +36,120 @@ pub mod vhstape;
 pub mod waves;
 pub mod wipe;
 
-pub use beams::BeamsEffect;
-pub use binarypath::BinaryPathEffect;
-pub use blackhole::BlackholeEffect;
-pub use bouncyballs::BouncyBallsEffect;
-pub use bubbles::BubblesEffect;
-pub use burn::BurnEffect;
-pub use colorshift::ColorShiftEffect;
-pub use crumble::CrumbleEffect;
-pub use decrypt::DecryptEffect;
-pub use errorcorrect::ErrorCorrectEffect;
-pub use expand::ExpandEffect;
-pub use fireworks::FireworksEffect;
-pub use highlight::HighlightEffect;
-pub use laseretch::LaserEtchEffect;
-pub use matrix::MatrixEffect;
-pub use middleout::MiddleOutEffect;
-pub use orbittingvolley::OrbittingVolleyEffect;
-pub use overflow::OverflowEffect;
-pub use pour::PourEffect;
-pub use print::PrintEffect;
-pub use rain::RainEffect;
-pub use randomsequence::RandomSequenceEffect;
-pub use rings::RingsEffect;
-pub use scattered::ScatteredEffect;
-pub use slice::SliceEffect;
-pub use slide::SlideEffect;
-pub use smoke::SmokeEffect;
-pub use spotlights::SpotlightsEffect;
-pub use spray::SprayEffect;
-pub use swarm::SwarmEffect;
-pub use sweep::SweepEffect;
-pub use synthgrid::SynthGridEffect;
-pub use thunderstorm::ThunderstormEffect;
-pub use unstable::UnstableEffect;
-pub use vhstape::VHSTapeEffect;
-pub use waves::WavesEffect;
-pub use wipe::WipeEffect;
+use crate::engine::Grid;
+
+/// Common trait for all effects.
+pub trait Effect {
+    fn tick(&mut self, grid: &mut Grid) -> bool;
+}
+
+/// Effect registry entry: metadata + constructor.
+pub struct EffectInfo {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub create: fn(&Grid) -> Box<dyn Effect>,
+}
+
+// Implement Effect for every effect type, delegating to their inherent tick().
+macro_rules! impl_effect {
+    ($($ty:path),* $(,)?) => {
+        $(impl Effect for $ty {
+            fn tick(&mut self, grid: &mut Grid) -> bool {
+                self.tick(grid)
+            }
+        })*
+    };
+}
+
+impl_effect!(
+    beams::BeamsEffect,
+    binarypath::BinaryPathEffect,
+    blackhole::BlackholeEffect,
+    bouncyballs::BouncyBallsEffect,
+    bubbles::BubblesEffect,
+    burn::BurnEffect,
+    colorshift::ColorShiftEffect,
+    crumble::CrumbleEffect,
+    decrypt::DecryptEffect,
+    errorcorrect::ErrorCorrectEffect,
+    expand::ExpandEffect,
+    fireworks::FireworksEffect,
+    highlight::HighlightEffect,
+    laseretch::LaserEtchEffect,
+    matrix::MatrixEffect,
+    middleout::MiddleOutEffect,
+    orbittingvolley::OrbittingVolleyEffect,
+    overflow::OverflowEffect,
+    pour::PourEffect,
+    print::PrintEffect,
+    rain::RainEffect,
+    randomsequence::RandomSequenceEffect,
+    rings::RingsEffect,
+    scattered::ScatteredEffect,
+    slice::SliceEffect,
+    slide::SlideEffect,
+    smoke::SmokeEffect,
+    spotlights::SpotlightsEffect,
+    spray::SprayEffect,
+    swarm::SwarmEffect,
+    sweep::SweepEffect,
+    synthgrid::SynthGridEffect,
+    thunderstorm::ThunderstormEffect,
+    unstable::UnstableEffect,
+    vhstape::VHSTapeEffect,
+    waves::WavesEffect,
+    wipe::WipeEffect,
+);
+
+/// Registry of all effects — metadata + constructor, sourced from each module.
+macro_rules! register_effects {
+    ($($mod:ident :: $ty:ident),* $(,)?) => {
+        pub const ALL_EFFECTS: &[EffectInfo] = &[
+            $(EffectInfo {
+                name: $mod::NAME,
+                description: $mod::DESCRIPTION,
+                create: |grid| Box::new($mod::$ty::new(grid)),
+            }),*
+        ];
+    };
+}
+
+register_effects!(
+    beams::BeamsEffect,
+    binarypath::BinaryPathEffect,
+    blackhole::BlackholeEffect,
+    bouncyballs::BouncyBallsEffect,
+    bubbles::BubblesEffect,
+    burn::BurnEffect,
+    colorshift::ColorShiftEffect,
+    crumble::CrumbleEffect,
+    decrypt::DecryptEffect,
+    errorcorrect::ErrorCorrectEffect,
+    expand::ExpandEffect,
+    fireworks::FireworksEffect,
+    highlight::HighlightEffect,
+    laseretch::LaserEtchEffect,
+    matrix::MatrixEffect,
+    middleout::MiddleOutEffect,
+    orbittingvolley::OrbittingVolleyEffect,
+    overflow::OverflowEffect,
+    pour::PourEffect,
+    print::PrintEffect,
+    rain::RainEffect,
+    randomsequence::RandomSequenceEffect,
+    rings::RingsEffect,
+    scattered::ScatteredEffect,
+    slice::SliceEffect,
+    slide::SlideEffect,
+    smoke::SmokeEffect,
+    spotlights::SpotlightsEffect,
+    spray::SprayEffect,
+    swarm::SwarmEffect,
+    sweep::SweepEffect,
+    synthgrid::SynthGridEffect,
+    thunderstorm::ThunderstormEffect,
+    unstable::UnstableEffect,
+    vhstape::VHSTapeEffect,
+    waves::WavesEffect,
+    wipe::WipeEffect,
+);

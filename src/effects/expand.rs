@@ -1,6 +1,9 @@
 // Expand effect — faithful TTE reimplementation
 // Characters expand from center to positions with gradient animation
 
+pub const NAME: &str = "expand";
+pub const DESCRIPTION: &str = "Expands the text from a single point.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

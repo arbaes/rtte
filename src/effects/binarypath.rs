@@ -1,4 +1,8 @@
 // BinaryPath effect — binary digits travel right-angle paths to final positions
+
+pub const NAME: &str = "binarypath";
+pub const DESCRIPTION: &str = "Binary representations of each character move towards the home coordinate of the character.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;

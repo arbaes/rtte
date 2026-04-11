@@ -1,6 +1,9 @@
 // MiddleOut effect — faithful TTE reimplementation
 // Characters expand from center: first to center line, then to final positions
 
+pub const NAME: &str = "middleout";
+pub const DESCRIPTION: &str = "Text expands in a single row or column in the middle of the canvas then out.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

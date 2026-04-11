@@ -7,6 +7,9 @@
 // 4. Activated character plays beam scene: beam_symbols with gradient, then char faded.
 // 5. When all groups done, final diagonal wipe activates "brighten" scene per char.
 
+pub const NAME: &str = "beams";
+pub const DESCRIPTION: &str = "Create beams which travel over the canvas illuminating the characters behind them.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;

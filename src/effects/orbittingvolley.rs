@@ -1,4 +1,8 @@
 // OrbittingVolley — 4 launchers orbit, fire chars inward
+
+pub const NAME: &str = "orbittingvolley";
+pub const DESCRIPTION: &str = "Four launchers orbit the canvas firing volleys of characters inward to build the input text from the center out.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

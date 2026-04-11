@@ -1,4 +1,8 @@
 // Swarm effect — grouped swarm movement through areas before settling
+
+pub const NAME: &str = "swarm";
+pub const DESCRIPTION: &str = "Characters are grouped into swarms and move around the terminal before settling into position.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

@@ -3,6 +3,9 @@
 // Typewriter: print head moves L→R, types characters with block animation,
 // carriage returns to next row with eased motion.
 
+pub const NAME: &str = "print";
+pub const DESCRIPTION: &str = "Lines are printed one at a time following a print head. Print head performs line feed, carriage return.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

@@ -4,6 +4,9 @@
 // across text. Each character brightens then dims as the beam passes.
 // Characters are visible at their final gradient color throughout.
 
+pub const NAME: &str = "highlight";
+pub const DESCRIPTION: &str = "Run a specular highlight across the text.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

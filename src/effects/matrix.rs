@@ -1,4 +1,8 @@
 // Matrix effect — digital rain columns that resolve to text
+
+pub const NAME: &str = "matrix";
+pub const DESCRIPTION: &str = "Matrix digital rain effect.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;

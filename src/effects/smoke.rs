@@ -1,6 +1,9 @@
 // Smoke effect — faithful TTE reimplementation
 // BFS flood fill with smoke symbols, then settle to final color
 
+pub const NAME: &str = "smoke";
+pub const DESCRIPTION: &str = "Smoke floods the canvas colorizing any characters it crosses.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;

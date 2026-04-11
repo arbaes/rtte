@@ -1,6 +1,9 @@
 // Spotlights effect — faithful TTE reimplementation
 // Spotlights search canvas, illuminate nearby chars, then expand to reveal all
 
+pub const NAME: &str = "spotlights";
+pub const DESCRIPTION: &str = "Spotlights search the text area, illuminating characters, before converging in the center and expanding.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::Rng;

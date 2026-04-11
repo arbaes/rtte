@@ -1,6 +1,9 @@
 // Spray effect — faithful TTE reimplementation
 // All characters start at origin point, spray outward to positions
 
+pub const NAME: &str = "spray";
+pub const DESCRIPTION: &str = "Draws the characters spawning at varying rates from a single point.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

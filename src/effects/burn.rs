@@ -1,6 +1,9 @@
 // Burn effect — faithful TTE reimplementation
 // Fire spreads through text with burn symbols, smoke particles
 
+pub const NAME: &str = "burn";
+pub const DESCRIPTION: &str = "Burns vertically in the canvas.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use std::collections::VecDeque;

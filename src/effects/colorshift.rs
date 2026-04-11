@@ -1,4 +1,8 @@
 // ColorShift effect — animated gradient cycle with traveling wave
+
+pub const NAME: &str = "colorshift";
+pub const DESCRIPTION: &str = "Display a gradient that shifts colors across the terminal.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 

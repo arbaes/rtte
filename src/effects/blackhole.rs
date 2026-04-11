@@ -1,6 +1,9 @@
 // Blackhole effect — faithful TTE reimplementation
 // Characters pulled into center, consumed, then explode outward
 
+pub const NAME: &str = "blackhole";
+pub const DESCRIPTION: &str = "Characters are consumed by a black hole and explode outwards.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

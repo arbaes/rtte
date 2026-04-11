@@ -1,6 +1,9 @@
 // Slice effect — faithful TTE reimplementation
 // Text split vertically, halves slide in from opposite edges with in_out_expo
 
+pub const NAME: &str = "slice";
+pub const DESCRIPTION: &str = "Slices the input in half and slides it into place from opposite directions.";
+
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

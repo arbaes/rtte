@@ -4,6 +4,9 @@
 // a 7-step gradient animation from starting_color (#000000) to its
 // final positional color.
 
+pub const NAME: &str = "randomsequence";
+pub const DESCRIPTION: &str = "Prints the input data in a random sequence.";
+
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
