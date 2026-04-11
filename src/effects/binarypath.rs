@@ -66,8 +66,7 @@ pub struct BinaryPathEffect {
 impl BinaryPathEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height) = (grid.width, grid.height);
-        let final_gradient =
-            Gradient::new(&[Rgb::from_hex("00d500"), Rgb::from_hex("007500")], 12);
+        let final_gradient = Gradient::new(&[Rgb::from_hex("00d500"), Rgb::from_hex("007500")], 12);
         let binary_colors = [
             Rgb::from_hex("044E29"),
             Rgb::from_hex("157e38"),
@@ -79,13 +78,7 @@ impl BinaryPathEffect {
         let mut reps = Vec::new();
 
         for (y, x) in grid.char_positions() {
-            let fc = final_gradient.color_at_coord(
-                y,
-                x,
-                height,
-                width,
-                GradientDirection::Radial,
-            );
+            let fc = final_gradient.color_at_coord(y, x, height, width, GradientDirection::Radial);
             let ch = grid.cells[y][x].ch;
             let binary_string = format!("{:08b}", ch as u32);
             let path = generate_path(&mut rng, y, x, width, height);
@@ -276,10 +269,7 @@ impl BinaryPathEffect {
         }
 
         if self.wipe_idx >= self.wipe_groups.len()
-            && self
-                .reps
-                .iter()
-                .all(|r| r.brighten_step >= BRIGHTEN_FRAMES)
+            && self.reps.iter().all(|r| r.brighten_step >= BRIGHTEN_FRAMES)
         {
             self.phase = Phase::Done;
         }
