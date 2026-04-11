@@ -260,7 +260,7 @@ impl ErrorCorrectEffect {
                 cell.fg = Some(error_color.to_crossterm());
             }
             PairPhase::ErrorGlitch => {
-                if sc.scene_idx.is_multiple_of(2) {
+                if sc.scene_idx % 2 == 0 {
                     cell.ch = '▓';
                     cell.fg = Some(error_color.to_crossterm());
                 } else {
