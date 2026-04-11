@@ -1,6 +1,10 @@
 name: Cargo Audit
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - "Cargo.lock"
   schedule:
     # Daily at 08:00 UTC
     - cron: "0 8 * * *"
@@ -12,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: master
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --quiet
