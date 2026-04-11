@@ -1,0 +1,77 @@
+name: Effect Parity
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "src/effects/**"
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/effects/**"
+  schedule:
+    # Weekly on Monday at 06:00 UTC — catch new TTE effects
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check-parity:
+    name: TTE Effect Parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install TTE
+        run: pip install terminaltexteffects
+
+      - name: Extract and compare effect lists
+        run: |
+          # TTE effects: parse subcommand names from tte --help
+          # The effect list is the longest {...} group in the help output
+          tte_effects=$(tte --help \
+            | grep -oP '\{[^}]+\}' \
+            | awk '{ print length, $0 }' \
+            | sort -rn \
+            | head -1 \
+            | cut -d' ' -f2- \
+            | tr -d '{}' \
+            | tr ',' '\n' \
+            | sort)
+
+          # rtte effects: pub mod <name>;
+          rtte_effects=$(grep '^pub mod ' src/effects/mod.rs \
+            | awk '{print $3}' \
+            | tr -d ';' \
+            | sort)
+
+          tte_count=$(echo "$tte_effects" | wc -l)
+          rtte_count=$(echo "$rtte_effects" | wc -l)
+
+          echo "TTE effects ($tte_count):"
+          echo "$tte_effects"
+          echo ""
+          echo "rtte effects ($rtte_count):"
+          echo "$rtte_effects"
+          echo ""
+
+          # Effects in TTE but missing from rtte
+          missing=$(comm -23 <(echo "$tte_effects") <(echo "$rtte_effects"))
+          # Effects in rtte but not in TTE
+          extra=$(comm -13 <(echo "$tte_effects") <(echo "$rtte_effects"))
+
+          if [ -n "$missing" ] || [ -n "$extra" ]; then
+            echo "::error::Effect parity mismatch!"
+            if [ -n "$missing" ]; then
+              echo ""
+              echo "Missing from rtte (present in TTE):"
+              echo "$missing"
+            fi
+            if [ -n "$extra" ]; then
+              echo ""
+              echo "Extra in rtte (not in TTE):"
+              echo "$extra"
+            fi
+            exit 1
+          fi
+
+          echo "All $rtte_count/$tte_count effects match."
