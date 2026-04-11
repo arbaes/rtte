@@ -10,6 +10,8 @@
 Rust reimplementation of [TerminalTextEffects (TTE)](https://github.com/ChrisBuilds/terminaltexteffects) by [ChrisBuilds](https://github.com/ChrisBuilds).
 
 [![CI](https://github.com/arbaes/rtte/actions/workflows/ci.yml/badge.svg)](https://github.com/arbaes/rtte/actions/workflows/ci.yml)
+[![Effect Parity](https://github.com/arbaes/rtte/actions/workflows/effect-parity.yml/badge.svg)](https://github.com/arbaes/rtte/actions/workflows/effect-parity.yml)
+[![Security Audit](https://github.com/arbaes/rtte/actions/workflows/security-audit.yml/badge.svg)](https://github.com/arbaes/rtte/actions/workflows/security-audit.yml)
 ---
 
 ## Disclaimer
