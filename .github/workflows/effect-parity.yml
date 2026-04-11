@@ -25,6 +25,7 @@ jobs:
         run: pip install terminaltexteffects
 
       - name: Extract and compare effect lists
+        id: parity
         run: |
           # TTE effects: parse subcommand names from tte --help
           # The effect list is the longest {...} group in the help output
@@ -59,7 +60,12 @@ jobs:
           # Effects in rtte but not in TTE
           extra=$(comm -13 <(echo "$tte_effects") <(echo "$rtte_effects"))
 
+          # Export counts for badge
+          echo "rtte_count=$rtte_count" >> "$GITHUB_OUTPUT"
+          echo "tte_count=$tte_count" >> "$GITHUB_OUTPUT"
+
           if [ -n "$missing" ] || [ -n "$extra" ]; then
+            echo "parity=false" >> "$GITHUB_OUTPUT"
             echo "::error::Effect parity mismatch!"
             if [ -n "$missing" ]; then
               echo ""
@@ -74,4 +80,16 @@ jobs:
             exit 1
           fi
 
+          echo "parity=true" >> "$GITHUB_OUTPUT"
           echo "All $rtte_count/$tte_count effects match."
+
+      - name: Update badge
+        if: always() && github.ref == 'refs/heads/master'
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: f4a0f38efab6b4df99bfcba1f9c2cd2e
+          filename: effect-parity.json
+          label: TTE Effect Parity
+          message: "${{ steps.parity.outputs.rtte_count }}/${{ steps.parity.outputs.tte_count }}"
+          color: "${{ steps.parity.outputs.parity == 'true' && 'brightgreen' || 'red' }}"
