@@ -261,3 +261,90 @@ fn grid_chars_are_preserved_through_print() {
     assert_eq!(grid.cells[0][1].ch, 'Y');
     assert_eq!(grid.cells[0][2].ch, 'Z');
 }
+
+// ── binarypath-specific tests ───────────────────────────────────────────────
+
+/// Space cells must remain spaces after binarypath completes.
+/// Regression test: binary digits flying through space positions used to
+/// overwrite cell.ch with '0'/'1', which persisted into the final frame.
+#[test]
+fn binarypath_spaces_not_corrupted() {
+    let input = "A B C";
+    let mut grid = Grid::from_input(input);
+    let mut effect = BinaryPathEffect::new(&grid);
+    run_to_done(&mut |g| effect.tick(g), &mut grid, "BinaryPathEffect");
+
+    // Positions 1 and 3 are spaces — they must still be spaces.
+    assert_eq!(
+        grid.cells[0][1].ch, ' ',
+        "space at (0,1) was corrupted by binary digits"
+    );
+    assert_eq!(
+        grid.cells[0][3].ch, ' ',
+        "space at (0,3) was corrupted by binary digits"
+    );
+    // And the actual characters must be correct.
+    assert_eq!(grid.cells[0][0].ch, 'A');
+    assert_eq!(grid.cells[0][2].ch, 'B');
+    assert_eq!(grid.cells[0][4].ch, 'C');
+}
+
+/// Trailing padding spaces (from multi-line input where lines differ in
+/// length) must not show binary digits after completion.
+#[test]
+fn binarypath_padding_spaces_clean() {
+    let input = "Hi\nWorld!";
+    let mut grid = Grid::from_input(input);
+    // Grid is 6 wide (length of "World!"), row 0 is "Hi" + 4 padding spaces.
+    assert_eq!(grid.width, 6);
+
+    let mut effect = BinaryPathEffect::new(&grid);
+    run_to_done(&mut |g| effect.tick(g), &mut grid, "BinaryPathEffect");
+
+    // Padding cells on row 0 must be spaces.
+    for x in 2..6 {
+        assert_eq!(
+            grid.cells[0][x].ch, ' ',
+            "padding space at (0,{}) was corrupted",
+            x
+        );
+    }
+}
+
+/// After binarypath completes, every cell in the grid must either be its
+/// original character (for non-space positions) or a space.
+/// This is a broad version of the space-corruption test.
+#[test]
+fn binarypath_all_cells_correct_after_completion() {
+    let input = TEST_INPUT;
+    let mut grid = Grid::from_input(input);
+    let expected = Grid::from_input(input);
+    let mut effect = BinaryPathEffect::new(&grid);
+    run_to_done(&mut |g| effect.tick(g), &mut grid, "BinaryPathEffect");
+
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            let cell = &grid.cells[y][x];
+            let orig = &expected.cells[y][x];
+            assert_eq!(
+                cell.ch, orig.ch,
+                "cell ({},{}) has '{}' but expected '{}' after binarypath",
+                y, x, cell.ch, orig.ch
+            );
+        }
+    }
+}
+
+/// During the travel phase, no cell outside the grid bounds should be
+/// written to. This is a smoke test that the effect doesn't panic on
+/// inputs with internal spacing.
+#[test]
+fn binarypath_sparse_input_completes() {
+    let input = "  A  \n     \n  B  ";
+    let mut grid = Grid::from_input(input);
+    let mut effect = BinaryPathEffect::new(&grid);
+    let frames = run_to_done(&mut |g| effect.tick(g), &mut grid, "BinaryPathEffect");
+    assert!(frames > 0, "effect should take at least 1 frame");
+    assert_eq!(grid.cells[0][2].ch, 'A');
+    assert_eq!(grid.cells[2][2].ch, 'B');
+}

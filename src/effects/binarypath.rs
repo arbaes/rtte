@@ -1,47 +1,74 @@
 // BinaryPath effect — binary digits travel right-angle paths to final positions
+//
+// Each character's 8-bit binary representation travels as a trailing snake
+// along a right-angle path from outside the canvas to the character's position.
+// After all travel completes, a diagonal wipe brightens the final text.
 
 pub const NAME: &str = "binarypath";
 pub const DESCRIPTION: &str =
     "Binary representations of each character move towards the home coordinate of the character.";
 
+use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-struct BinaryChar {
-    final_y: usize,
-    final_x: usize,
-    path: Vec<(f64, f64)>,
-    path_idx: usize,
-    progress: f64,
-    speed: f64,
-    original_ch: char,
-    final_color: Rgb,
-    binary_color: Rgb,
+// Collapse: white -> dim (7 gradient steps, 3 frames each, in_quad easing)
+const COLLAPSE_FRAMES: usize = 21;
+// Brighten: dim -> final (10 gradient steps, 2 frames each, linear)
+const BRIGHTEN_FRAMES: usize = 20;
+
+struct BinaryDigit {
+    symbol: char,
+    color: Rgb,
+    target_idx: usize, // next waypoint to reach (starts at 1)
+    cy: f64,
+    cx: f64,
     active: bool,
     arrived: bool,
+}
+
+struct BinaryRep {
+    final_y: usize,
+    final_x: usize,
+    original_ch: char,
+    final_color: Rgb,
+    path: Vec<(f64, f64)>,
+    digits: Vec<BinaryDigit>,
+    next_release: usize,
+    travel_complete: bool,
+    source_visible: bool,
+    collapse_step: usize,
+    brighten_active: bool,
     brighten_step: usize,
-    binary_symbol: char,
+}
+
+#[derive(PartialEq)]
+enum Phase {
+    Travel,
+    Wipe,
+    Done,
 }
 
 pub struct BinaryPathEffect {
-    chars: Vec<BinaryChar>,
-    dm: usize,
+    reps: Vec<BinaryRep>,
     width: usize,
     height: usize,
-    frame: usize,
     max_active: usize,
     pending: Vec<usize>,
-    binary_colors: Vec<Rgb>,
-    final_gradient: Gradient,
+    active_reps: Vec<usize>,
+    phase: Phase,
+    wipe_groups: Vec<Vec<usize>>,
+    wipe_idx: usize,
 }
 
 impl BinaryPathEffect {
     pub fn new(grid: &Grid) -> Self {
-        let (width, height, dm) = (grid.width, grid.height, 2usize);
-        let final_gradient = Gradient::new(&[Rgb::from_hex("00d500"), Rgb::from_hex("007500")], 12);
-        let binary_colors = vec![
+        let (width, height) = (grid.width, grid.height);
+        let final_gradient =
+            Gradient::new(&[Rgb::from_hex("00d500"), Rgb::from_hex("007500")], 12);
+        let binary_colors = [
             Rgb::from_hex("044E29"),
             Rgb::from_hex("157e38"),
             Rgb::from_hex("45bf55"),
@@ -49,199 +76,344 @@ impl BinaryPathEffect {
         ];
 
         let mut rng = rand::thread_rng();
-        let mut chars = Vec::new();
+        let mut reps = Vec::new();
 
-        for y in 0..height {
-            for x in 0..width {
-                let fc =
-                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
-                let bc = binary_colors[rng.gen_range(0..binary_colors.len())];
+        for (y, x) in grid.char_positions() {
+            let fc = final_gradient.color_at_coord(
+                y,
+                x,
+                height,
+                width,
+                GradientDirection::Radial,
+            );
+            let ch = grid.cells[y][x].ch;
+            let binary_string = format!("{:08b}", ch as u32);
+            let path = generate_path(&mut rng, y, x, width, height);
 
-                // Generate right-angle path from outside to (y, x)
-                let mut path = Vec::new();
-                // Start outside
-                let side = rng.gen_range(0..4);
-                let (mut cy, mut cx): (f64, f64) = match side {
-                    0 => (
-                        rng.gen_range(0..height) as f64,
-                        -(rng.gen_range(3..15) as f64),
-                    ),
-                    1 => (
-                        rng.gen_range(0..height) as f64,
-                        (width + rng.gen_range(3..15)) as f64,
-                    ),
-                    2 => (
-                        -(rng.gen_range(3..15) as f64),
-                        rng.gen_range(0..width) as f64,
-                    ),
-                    _ => (
-                        (height + rng.gen_range(3..15)) as f64,
-                        rng.gen_range(0..width) as f64,
-                    ),
-                };
-                path.push((cy, cx));
-
-                // Alternate horizontal/vertical segments toward target
-                let target_y = y as f64;
-                let target_x = x as f64;
-                let mut horizontal = rng.gen_bool(0.5);
-                for _ in 0..20 {
-                    if (cy - target_y).abs() < 0.5 && (cx - target_x).abs() < 0.5 {
-                        break;
-                    }
-                    if horizontal {
-                        let remaining = target_x - cx;
-                        let step = remaining.signum() * remaining.abs().min(10.0);
-                        cx += step;
-                    } else {
-                        let remaining = target_y - cy;
-                        let step = remaining.signum() * remaining.abs().min(4.0);
-                        cy += step;
-                    }
-                    path.push((cy, cx));
-                    horizontal = !horizontal;
-                }
-                path.push((target_y, target_x));
-
-                chars.push(BinaryChar {
-                    final_y: y,
-                    final_x: x,
-                    path,
-                    path_idx: 0,
-                    progress: 0.0,
-                    speed: 1.0 / dm as f64,
-                    original_ch: grid.cells[y][x].ch,
-                    final_color: fc,
-                    binary_color: bc,
+            let digits: Vec<BinaryDigit> = binary_string
+                .chars()
+                .map(|bit| BinaryDigit {
+                    symbol: bit,
+                    color: binary_colors[rng.gen_range(0..binary_colors.len())],
+                    target_idx: 1,
+                    cy: path[0].0,
+                    cx: path[0].1,
                     active: false,
                     arrived: false,
-                    brighten_step: 0,
-                    binary_symbol: if rng.gen_bool(0.5) { '0' } else { '1' },
-                });
-            }
+                })
+                .collect();
+
+            reps.push(BinaryRep {
+                final_y: y,
+                final_x: x,
+                original_ch: ch,
+                final_color: fc,
+                path,
+                digits,
+                next_release: 0,
+                travel_complete: false,
+                source_visible: false,
+                collapse_step: 0,
+                brighten_active: false,
+                brighten_step: 0,
+            });
         }
 
-        let total = chars.len();
+        let total = reps.len();
         let max_active = (total as f64 * 0.08).max(1.0) as usize;
         let mut pending: Vec<usize> = (0..total).collect();
         pending.shuffle(&mut rng);
 
+        // Diagonal wipe groups: top-right to bottom-left
+        let max_diag = if width > 0 && height > 0 {
+            height + width - 2
+        } else {
+            0
+        };
+        let mut wipe_groups: Vec<Vec<usize>> = (0..=max_diag).map(|_| Vec::new()).collect();
+        for (i, rep) in reps.iter().enumerate() {
+            let diag = rep.final_y + width.saturating_sub(1).saturating_sub(rep.final_x);
+            if diag <= max_diag {
+                wipe_groups[diag].push(i);
+            }
+        }
+        wipe_groups.retain(|g| !g.is_empty());
+
         BinaryPathEffect {
-            chars,
-            dm,
+            reps,
             width,
             height,
-            frame: 0,
             max_active,
             pending,
-            binary_colors,
-            final_gradient,
+            active_reps: Vec::new(),
+            phase: Phase::Travel,
+            wipe_groups,
+            wipe_idx: 0,
         }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
-        self.frame += 1;
-        let _dm = self.dm;
-
-        // Activate new chars
-        let active_count = self.chars.iter().filter(|c| c.active && !c.arrived).count();
-        let to_activate = self.max_active.saturating_sub(active_count);
-        for _ in 0..to_activate {
-            if let Some(idx) = self.pending.pop() {
-                self.chars[idx].active = true;
-            }
-        }
-
-        // Move active chars along paths
-        for ch in &mut self.chars {
-            if !ch.active || ch.arrived {
-                continue;
-            }
-            if ch.path_idx + 1 >= ch.path.len() {
-                ch.arrived = true;
-                continue;
-            }
-            ch.progress += ch.speed;
-            while ch.progress >= 1.0 && ch.path_idx + 1 < ch.path.len() {
-                ch.progress -= 1.0;
-                ch.path_idx += 1;
-            }
-            if ch.path_idx + 1 >= ch.path.len() {
-                ch.arrived = true;
-            }
-        }
-
-        // Brighten arrived chars
-        for ch in &mut self.chars {
-            if ch.arrived && ch.brighten_step < 10 {
-                ch.brighten_step += 1;
-            }
-        }
-
-        // Check done
-        if self.pending.is_empty()
-            && self
-                .chars
-                .iter()
-                .all(|c| c.arrived && c.brighten_step >= 10)
-        {
-            // Set final state
+        if self.phase == Phase::Done {
+            // Reset all cells to spaces first — digits in flight may have
+            // overwritten ch on space cells during earlier renders.
             for row in &mut grid.cells {
                 for cell in row {
+                    cell.ch = ' ';
+                    cell.fg = None;
                     cell.visible = true;
                 }
             }
-            for ch in &self.chars {
-                let cell = &mut grid.cells[ch.final_y][ch.final_x];
-                cell.ch = ch.original_ch;
-                cell.fg = Some(ch.final_color.to_crossterm());
+            for rep in &self.reps {
+                let cell = &mut grid.cells[rep.final_y][rep.final_x];
+                cell.ch = rep.original_ch;
+                cell.fg = Some(rep.final_color.to_crossterm());
             }
             return true;
         }
 
-        // Render
+        if self.phase == Phase::Travel {
+            self.tick_travel();
+        }
+        if self.phase == Phase::Wipe {
+            self.tick_wipe();
+        }
+
+        self.render(grid);
+        false
+    }
+
+    fn tick_travel(&mut self) {
+        // Activate new groups up to max_active
+        let active_count = self
+            .active_reps
+            .iter()
+            .filter(|&&i| !self.reps[i].travel_complete)
+            .count();
+        let to_activate = self.max_active.saturating_sub(active_count);
+        for _ in 0..to_activate {
+            if let Some(idx) = self.pending.pop() {
+                self.active_reps.push(idx);
+            }
+        }
+
+        let active_indices: Vec<usize> = self.active_reps.clone();
+        for &rep_idx in &active_indices {
+            let rep = &mut self.reps[rep_idx];
+
+            if rep.travel_complete {
+                if rep.source_visible && rep.collapse_step < COLLAPSE_FRAMES {
+                    rep.collapse_step += 1;
+                }
+                continue;
+            }
+
+            // Release one binary digit per frame
+            if rep.next_release < rep.digits.len() {
+                rep.digits[rep.next_release].active = true;
+                rep.next_release += 1;
+            }
+
+            // Move active digits along path
+            let path = &rep.path;
+            for digit in &mut rep.digits {
+                if !digit.active || digit.arrived {
+                    continue;
+                }
+                if digit.target_idx >= path.len() {
+                    digit.arrived = true;
+                    continue;
+                }
+                let (ty, tx) = path[digit.target_idx];
+                let dy = ty - digit.cy;
+                let dx = tx - digit.cx;
+                let dist = (dy * dy + dx * dx).sqrt();
+                if dist <= 1.0 {
+                    digit.cy = ty;
+                    digit.cx = tx;
+                    digit.target_idx += 1;
+                    if digit.target_idx >= path.len() {
+                        digit.arrived = true;
+                    }
+                } else {
+                    digit.cy += dy / dist;
+                    digit.cx += dx / dist;
+                }
+            }
+
+            // All digits arrived → show source character with collapse
+            if rep.next_release >= rep.digits.len() && rep.digits.iter().all(|d| d.arrived) {
+                rep.travel_complete = true;
+                rep.source_visible = true;
+            }
+        }
+
+        // Transition to wipe when all reps done with travel + collapse
+        if self.pending.is_empty()
+            && self
+                .reps
+                .iter()
+                .all(|r| r.travel_complete && r.collapse_step >= COLLAPSE_FRAMES)
+        {
+            self.phase = Phase::Wipe;
+        }
+    }
+
+    fn tick_wipe(&mut self) {
+        // Activate 2 diagonal groups per frame
+        for _ in 0..2 {
+            if self.wipe_idx < self.wipe_groups.len() {
+                for &rep_idx in &self.wipe_groups[self.wipe_idx] {
+                    self.reps[rep_idx].brighten_active = true;
+                }
+                self.wipe_idx += 1;
+            }
+        }
+
+        for rep in &mut self.reps {
+            if rep.brighten_active && rep.brighten_step < BRIGHTEN_FRAMES {
+                rep.brighten_step += 1;
+            }
+        }
+
+        if self.wipe_idx >= self.wipe_groups.len()
+            && self
+                .reps
+                .iter()
+                .all(|r| r.brighten_step >= BRIGHTEN_FRAMES)
+        {
+            self.phase = Phase::Done;
+        }
+    }
+
+    fn render(&self, grid: &mut Grid) {
         for row in &mut grid.cells {
             for cell in row {
                 cell.visible = false;
             }
         }
-        for ch in &self.chars {
-            if !ch.active {
-                continue;
-            }
-            if ch.arrived {
-                let cell = &mut grid.cells[ch.final_y][ch.final_x];
+
+        for rep in &self.reps {
+            if rep.travel_complete && rep.source_visible {
+                let cell = &mut grid.cells[rep.final_y][rep.final_x];
                 cell.visible = true;
-                cell.ch = ch.original_ch;
-                let t = ch.brighten_step as f64 / 10.0;
-                let white50 = Rgb {
-                    r: 128,
-                    g: 128,
-                    b: 128,
-                };
-                cell.fg = Some(Rgb::lerp(white50, ch.final_color, t).to_crossterm());
-            } else {
-                // Show at current path position
-                let idx = ch.path_idx;
-                let (y0, x0) = ch.path[idx];
-                let (y1, x1) = if idx + 1 < ch.path.len() {
-                    ch.path[idx + 1]
+                cell.ch = rep.original_ch;
+
+                if rep.brighten_active {
+                    // Wipe phase: dim → final (linear)
+                    let dim = rep.final_color.adjust_brightness(0.5);
+                    let t = rep.brighten_step as f64 / BRIGHTEN_FRAMES as f64;
+                    cell.fg = Some(Rgb::lerp(dim, rep.final_color, t).to_crossterm());
                 } else {
-                    ch.path[idx]
-                };
-                let t = ch.progress.min(1.0);
-                let cy = y0 + (y1 - y0) * t;
-                let cx = x0 + (x1 - x0) * t;
-                let ry = cy.round() as isize;
-                let rx = cx.round() as isize;
-                if ry >= 0 && rx >= 0 && (ry as usize) < self.height && (rx as usize) < self.width {
-                    let cell = &mut grid.cells[ry as usize][rx as usize];
-                    cell.visible = true;
-                    cell.ch = ch.binary_symbol;
-                    cell.fg = Some(ch.binary_color.to_crossterm());
+                    // Collapse phase: white → dim (in_quad)
+                    let dim = rep.final_color.adjust_brightness(0.5);
+                    let t = easing::in_quad(rep.collapse_step as f64 / COLLAPSE_FRAMES as f64);
+                    let white = Rgb::new(255, 255, 255);
+                    cell.fg = Some(Rgb::lerp(white, dim, t).to_crossterm());
+                }
+            } else {
+                // Render binary digits in flight (including arrived digits waiting for others)
+                for digit in &rep.digits {
+                    if !digit.active {
+                        continue;
+                    }
+                    let (ry, rx) = if digit.arrived {
+                        (rep.final_y as isize, rep.final_x as isize)
+                    } else {
+                        (digit.cy.round() as isize, digit.cx.round() as isize)
+                    };
+                    if ry >= 0
+                        && rx >= 0
+                        && (ry as usize) < self.height
+                        && (rx as usize) < self.width
+                    {
+                        let cell = &mut grid.cells[ry as usize][rx as usize];
+                        cell.visible = true;
+                        cell.ch = digit.symbol;
+                        cell.fg = Some(digit.color.to_crossterm());
+                    }
                 }
             }
         }
-        false
     }
+}
+
+/// Generate a right-angle path from outside the canvas to (target_y, target_x),
+/// matching TTE's distance-aware randomized step sizes.
+fn generate_path(
+    rng: &mut impl Rng,
+    target_y: usize,
+    target_x: usize,
+    width: usize,
+    height: usize,
+) -> Vec<(f64, f64)> {
+    let mut path = Vec::new();
+
+    // Start from random position outside canvas
+    let side = rng.gen_range(0..4);
+    let start = match side {
+        0 => (
+            rng.gen_range(0..height.max(1)) as f64,
+            -(rng.gen_range(3..15) as f64),
+        ),
+        1 => (
+            rng.gen_range(0..height.max(1)) as f64,
+            (width + rng.gen_range(3..15)) as f64,
+        ),
+        2 => (
+            -(rng.gen_range(3..15) as f64),
+            rng.gen_range(0..width.max(1)) as f64,
+        ),
+        _ => (
+            (height + rng.gen_range(3..15)) as f64,
+            rng.gen_range(0..width.max(1)) as f64,
+        ),
+    };
+    path.push(start);
+
+    let ty = target_y as f64;
+    let tx = target_x as f64;
+    let mut last_orientation = if rng.gen_bool(0.5) { "col" } else { "row" };
+
+    loop {
+        let (ly, lx) = *path.last().unwrap();
+        if (ly - ty).abs() < 0.5 && (lx - tx).abs() < 0.5 {
+            break;
+        }
+
+        let col_dir: f64 = if lx > tx {
+            -1.0
+        } else if lx < tx {
+            1.0
+        } else {
+            0.0
+        };
+        let row_dir: f64 = if ly > ty {
+            -1.0
+        } else if ly < ty {
+            1.0
+        } else {
+            0.0
+        };
+        let max_col_dist = (lx - tx).abs() as usize;
+        let max_row_dist = (ly - ty).abs() as usize;
+
+        let next = if last_orientation == "col" && max_row_dist > 0 {
+            let max_step = max_row_dist.min(10usize.max((width as f64 * 0.2) as usize));
+            let step = rng.gen_range(1..=max_step.max(1));
+            last_orientation = "row";
+            (ly + step as f64 * row_dir, lx)
+        } else if last_orientation == "row" && max_col_dist > 0 {
+            let max_step = max_col_dist.min(4);
+            let step = rng.gen_range(1..=max_step.max(1));
+            last_orientation = "col";
+            (ly, lx + step as f64 * col_dir)
+        } else {
+            (ty, tx)
+        };
+
+        path.push(next);
+    }
+
+    path.push((ty, tx));
+    path
 }
