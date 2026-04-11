@@ -36,6 +36,23 @@ pub mod vhstape;
 pub mod waves;
 pub mod wipe;
 
+// Re-exports for test convenience (use crate::effects::*)
+#[cfg(test)]
+pub use {
+    beams::BeamsEffect, binarypath::BinaryPathEffect, blackhole::BlackholeEffect,
+    bouncyballs::BouncyBallsEffect, bubbles::BubblesEffect, burn::BurnEffect,
+    colorshift::ColorShiftEffect, crumble::CrumbleEffect, decrypt::DecryptEffect,
+    errorcorrect::ErrorCorrectEffect, expand::ExpandEffect, fireworks::FireworksEffect,
+    highlight::HighlightEffect, laseretch::LaserEtchEffect, matrix::MatrixEffect,
+    middleout::MiddleOutEffect, orbittingvolley::OrbittingVolleyEffect,
+    overflow::OverflowEffect, pour::PourEffect, print::PrintEffect, rain::RainEffect,
+    randomsequence::RandomSequenceEffect, rings::RingsEffect, scattered::ScatteredEffect,
+    slice::SliceEffect, slide::SlideEffect, smoke::SmokeEffect, spotlights::SpotlightsEffect,
+    spray::SprayEffect, swarm::SwarmEffect, sweep::SweepEffect, synthgrid::SynthGridEffect,
+    thunderstorm::ThunderstormEffect, unstable::UnstableEffect, vhstape::VHSTapeEffect,
+    waves::WavesEffect, wipe::WipeEffect,
+};
+
 use crate::engine::Grid;
 
 /// Common trait for all effects.
