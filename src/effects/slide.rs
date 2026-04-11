@@ -49,7 +49,7 @@ impl SlideEffect {
         let mut chars = Vec::with_capacity(width * height);
         let mut groups: Vec<Vec<usize>> = vec![Vec::new(); height];
 
-        for y in 0..height {
+        for (y, group) in groups.iter_mut().enumerate() {
             for x in 0..width {
                 let final_color =
                     final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
@@ -59,7 +59,7 @@ impl SlideEffect {
                 let speed = (movement_speed / dist) / dm as f64;
 
                 let idx = chars.len();
-                groups[y].push(idx);
+                group.push(idx);
 
                 chars.push(SlideChar {
                     final_y: y,

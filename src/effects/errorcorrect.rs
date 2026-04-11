@@ -4,7 +4,6 @@
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
-use rand::Rng;
 
 #[derive(Clone, Copy, PartialEq)]
 enum PairPhase {
@@ -160,12 +159,12 @@ impl ErrorCorrectEffect {
         }
     }
 
-    fn tick_swap_char(sc: &mut SwapChar, error_color: Rgb, correct_color: Rgb, dm: usize) {
+    fn tick_swap_char(sc: &mut SwapChar, _error_color: Rgb, _correct_color: Rgb, dm: usize) {
         sc.frame_count += 1;
         match sc.phase {
             PairPhase::Waiting => {}
             PairPhase::ErrorDisplay => {
-                if sc.frame_count >= 1 * dm {
+                if sc.frame_count >= dm {
                     sc.phase = PairPhase::ErrorGlitch;
                     sc.frame_count = 0;
                     sc.scene_idx = 0;
@@ -261,7 +260,7 @@ impl ErrorCorrectEffect {
                 cell.fg = Some(error_color.to_crossterm());
             }
             PairPhase::ErrorGlitch => {
-                if sc.scene_idx % 2 == 0 {
+                if sc.scene_idx.is_multiple_of(2) {
                     cell.ch = '▓';
                     cell.fg = Some(error_color.to_crossterm());
                 } else {

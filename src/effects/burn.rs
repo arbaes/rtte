@@ -3,7 +3,6 @@
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
-use rand::Rng;
 use std::collections::VecDeque;
 
 const BURN_CHARS: [char; 9] = ['\'', '.', '▖', '▙', '█', '▜', '▀', '▝', '.'];
@@ -84,7 +83,7 @@ impl BurnEffect {
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
-        let mut rng = rand::thread_rng();
+        let _rng = rand::thread_rng();
         if !self.started {
             // Start from bottom center
             let sy = self.height.saturating_sub(1);

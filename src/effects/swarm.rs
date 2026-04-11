@@ -87,8 +87,7 @@ impl SwarmEffect {
             let start_y = rng.gen_range(0..height.max(1)) as f64;
             let start_x = rng.gen_range(0..width.max(1)) as f64;
 
-            for i in pos..pos + size {
-                let ci = indices[i];
+            for &ci in &indices[pos..pos + size] {
                 chars[ci].swarm_idx = swarm_id;
                 chars[ci].cur_y = start_y;
                 chars[ci].cur_x = start_x;

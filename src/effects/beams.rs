@@ -9,7 +9,6 @@
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
-use crossterm::style::Color;
 use rand::Rng;
 
 // --- Per-character scene frame ---
@@ -312,15 +311,15 @@ impl BeamsState {
 
         // Store pre-computed scenes in a parallel array
         // row_scenes[idx] and col_scenes[idx] for each char
-        let row_scenes: Vec<Vec<SceneFrame>> = chars
+        let _row_scenes: Vec<Vec<SceneFrame>> = chars
             .iter()
             .map(|ca| build_row_scene(ca.original_ch, ca.faded_color, &beam_spectrum))
             .collect();
-        let col_scenes: Vec<Vec<SceneFrame>> = chars
+        let _col_scenes: Vec<Vec<SceneFrame>> = chars
             .iter()
             .map(|ca| build_col_scene(ca.original_ch, ca.faded_color, &beam_spectrum))
             .collect();
-        let brighten_scenes: Vec<Vec<SceneFrame>> = chars
+        let _brighten_scenes: Vec<Vec<SceneFrame>> = chars
             .iter()
             .map(|ca| build_brighten_scene(ca.original_ch, ca.faded_color, ca.final_color))
             .collect();
@@ -632,7 +631,7 @@ impl BeamsEffect {
             Phase::FinalWipe => {
                 // Activate diagonal groups
                 for _ in 0..s.final_wipe_speed {
-                    if let Some(diag_group) = s.final_wipe_groups.first() {
+                    if let Some(_diag_group) = s.final_wipe_groups.first() {
                         let group = s.final_wipe_groups.remove(0);
                         for idx in group {
                             if idx < s.chars.len() {

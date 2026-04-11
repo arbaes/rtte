@@ -176,7 +176,7 @@ impl BlackholeEffect {
         }
 
         // Check if all consumed → trigger explosion
-        let all_consumed = self
+        let _all_consumed = self
             .chars
             .iter()
             .all(|c| c.phase != BHPhase::Forming && c.phase != BHPhase::Consuming);

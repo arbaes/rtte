@@ -184,7 +184,7 @@ impl DecryptEffect {
                 typing_scene.push(SceneFrame {
                     symbol: encrypted_symbols[rng.gen_range(0..encrypted_symbols.len())],
                     color: cipher_color,
-                    duration: 1 * dm,
+                    duration: dm,
                 });
 
                 // Build fast_decrypt scene: 80 random symbols

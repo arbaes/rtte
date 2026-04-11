@@ -136,7 +136,7 @@ impl BinaryPathEffect {
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         self.frame += 1;
-        let dm = self.dm;
+        let _dm = self.dm;
 
         // Activate new chars
         let active_count = self.chars.iter().filter(|c| c.active && !c.arrived).count();

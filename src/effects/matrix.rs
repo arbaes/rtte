@@ -252,8 +252,6 @@ impl MatrixEffect {
                             // Symbol swap chance
                             if rng.gen::<f64>() < 0.005 {
                                 cell.ch = *self.rain_symbols.choose(&mut rng).unwrap_or(&'0');
-                            } else {
-                                cell.ch = *self.rain_symbols.choose(&mut rng).unwrap_or(&'0');
                             }
                             let dist_from_head = (col.head - y as isize) as f64 / col.length as f64;
                             let idx = (dist_from_head * 11.0) as usize;

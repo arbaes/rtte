@@ -86,7 +86,7 @@ impl OverflowEffect {
         }
 
         // Add final correct rows
-        for y in 0..height {
+        for (y, orig_row) in original.iter().enumerate() {
             let row_chars: Vec<(char, Rgb)> = (0..width)
                 .map(|x| {
                     let color = final_gradient.color_at_coord(
@@ -96,7 +96,7 @@ impl OverflowEffect {
                         width,
                         GradientDirection::Vertical,
                     );
-                    (original[y][x], color)
+                    (orig_row[x], color)
                 })
                 .collect();
             rows.push(OverflowRow {

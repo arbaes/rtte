@@ -99,7 +99,7 @@ impl SweepEffect {
         let mut groups_p2: Vec<Vec<usize>> = vec![Vec::new(); width];
 
         for y in 0..height {
-            for x in 0..width {
+            for (x, g2) in groups_p2.iter_mut().enumerate() {
                 let final_color =
                     final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
                 let gray_idx = rng.gen_range(0..GRAY_SHADES.len());
@@ -109,7 +109,7 @@ impl SweepEffect {
                 let p1_col = width.saturating_sub(1).saturating_sub(x);
                 groups_p1[p1_col].push(idx);
                 // L→R for phase 2
-                groups_p2[x].push(idx);
+                g2.push(idx);
 
                 chars.push(SweepChar {
                     y,
@@ -151,7 +151,7 @@ impl SweepEffect {
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         let frames_per_symbol = 5 * self.dm;
-        let total_scene_frames = SWEEP_SYMBOLS.len() * frames_per_symbol + 1;
+        let _total_scene_frames = SWEEP_SYMBOLS.len() * frames_per_symbol + 1;
 
         // Advance easer and activate groups
         self.easer_step += self.easer_speed;
@@ -196,7 +196,7 @@ impl SweepEffect {
                             ch.hold = 0;
                             ch.frame_idx += 1;
                         }
-                        if ch.frame_idx >= SWEEP_SYMBOLS.len() + 1 {
+                        if ch.frame_idx > SWEEP_SYMBOLS.len() {
                             ch.phase1_done = true;
                         } else {
                             all_p1_done = false;
@@ -212,7 +212,7 @@ impl SweepEffect {
                             ch.hold = 0;
                             ch.frame_idx += 1;
                         }
-                        if ch.frame_idx >= SWEEP_SYMBOLS.len() + 1 {
+                        if ch.frame_idx > SWEEP_SYMBOLS.len() {
                             ch.phase2_done = true;
                         } else {
                             all_p2_done = false;

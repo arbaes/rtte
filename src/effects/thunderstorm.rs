@@ -138,7 +138,7 @@ impl ThunderstormEffect {
                         cell.fg = Some(color.to_crossterm());
                     }
                 }
-                return false;
+                false
             }
             Phase::Storm => {
                 // Spawn rain
@@ -188,9 +188,7 @@ impl ThunderstormEffect {
                         cy += 1;
                         match sym {
                             '/' => {
-                                if cx > 0 {
-                                    cx -= 1;
-                                }
+                                cx = cx.saturating_sub(1);
                             }
                             '\\' => {
                                 if cx + 1 < self.width {
@@ -217,9 +215,7 @@ impl ThunderstormEffect {
                                 by += 1;
                                 match bsym {
                                     '/' => {
-                                        if bx > 0 {
-                                            bx -= 1;
-                                        }
+                                        bx = bx.saturating_sub(1);
                                     }
                                     '\\' => {
                                         if bx + 1 < self.width {
@@ -342,7 +338,7 @@ impl ThunderstormEffect {
                         cell.fg = Some(sc.to_crossterm());
                     }
                 }
-                return false;
+                false
             }
             Phase::PostStorm => {
                 self.unfade_progress += 0.005 / dm as f64;
@@ -366,9 +362,9 @@ impl ThunderstormEffect {
                         cell.fg = Some(color.to_crossterm());
                     }
                 }
-                return false;
+                false
             }
-            Phase::Done => return true,
+            Phase::Done => true,
         }
     }
 }

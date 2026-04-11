@@ -132,7 +132,7 @@ impl RandomSequenceEffect {
         self.reveal_pos = end;
 
         // Tick all active animations
-        let mut all_revealed = self.reveal_pos >= self.reveal_order.len();
+        let all_revealed = self.reveal_pos >= self.reveal_order.len();
         let mut all_done = all_revealed;
         for ca in &mut self.chars {
             ca.tick();

@@ -2,7 +2,6 @@
 use crate::easing;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
-use rand::Rng;
 
 struct OVChar {
     final_y: usize,
@@ -104,7 +103,7 @@ impl OrbittingVolleyEffect {
             self.delay_count += 1;
             if self.delay_count >= self.volley_delay {
                 self.delay_count = 0;
-                let mut rng = rand::thread_rng();
+                let _rng = rand::thread_rng();
                 for li in 0..4 {
                     let (ly, lx) = self.launchers[li];
                     for _ in 0..self.volley_size.min(self.pending.len()) {

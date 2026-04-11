@@ -1,4 +1,3 @@
-use crate::easing;
 /// Per-character animation state, motion paths, and scene system.
 /// This matches TTE's base_character + animation + motion modules.
 use crate::gradient::Rgb;
@@ -314,7 +313,7 @@ impl CharState {
 
     /// Is the motion path complete?
     pub fn motion_complete(&self) -> bool {
-        self.motion.as_ref().map_or(true, |p| p.complete)
+        self.motion.as_ref().is_none_or(|p| p.complete)
     }
 
     /// Is the last scene complete?
@@ -322,7 +321,7 @@ impl CharState {
         if self.scenes.is_empty() {
             return true;
         }
-        self.scenes.last().map_or(true, |s| s.complete)
+        self.scenes.last().is_none_or(|s| s.complete)
     }
 
     /// Grid position for rendering

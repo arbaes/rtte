@@ -74,11 +74,11 @@ impl WavesEffect {
         let mut groups: Vec<Vec<usize>> = vec![Vec::new(); width];
 
         for y in 0..height {
-            for x in 0..width {
+            for (x, group) in groups.iter_mut().enumerate() {
                 let final_color =
                     final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
                 let idx = chars.len();
-                groups[x].push(idx);
+                group.push(idx);
 
                 chars.push(WaveChar {
                     y,

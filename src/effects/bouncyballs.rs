@@ -70,7 +70,7 @@ impl BouncyBallsEffect {
         // Group by row, bottom to top
         let mut row_chars: Vec<Vec<usize>> = vec![Vec::new(); height];
 
-        for y in 0..height {
+        for (y, row) in row_chars.iter_mut().enumerate() {
             for x in 0..width {
                 let final_color =
                     final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
@@ -79,7 +79,7 @@ impl BouncyBallsEffect {
                 let speed = (0.45 / dist) / dm as f64;
 
                 let idx = chars.len();
-                row_chars[y].push(idx);
+                row.push(idx);
 
                 chars.push(BallChar {
                     final_y: y,

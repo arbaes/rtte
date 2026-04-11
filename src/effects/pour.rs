@@ -93,7 +93,7 @@ impl PourEffect {
             chars,
             pending,
             pour_speed: 2,
-            gap: 1 * dm,
+            gap: dm,
             gap_counter: 0,
             width,
             height,

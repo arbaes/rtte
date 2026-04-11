@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod charstate;
 mod easing;
 mod effects;
