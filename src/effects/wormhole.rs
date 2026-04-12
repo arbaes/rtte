@@ -1,7 +1,7 @@
 // Wormhole effect — text is shown briefly, then characters are pulled toward
 // the center with increasing speed. Once consumed, they rapidly expand back
-// outward from the center to their original positions with a white-to-final
-// color gradient.
+// outward from the center to their original positions with a rainbow gradient
+// burst that settles into the final colors.
 
 pub const NAME: &str = "wormhole";
 pub const DESCRIPTION: &str =
@@ -15,8 +15,6 @@ use rand::Rng;
 
 // Hold: show original text before animation starts
 const HOLD_FRAMES: usize = 60;
-// Expand: rapid outward restoration
-const EXPAND_FRAMES: usize = 40;
 
 #[derive(PartialEq)]
 enum Phase {
@@ -32,10 +30,11 @@ struct WHChar {
     cur_y: f64,
     cur_x: f64,
     original_ch: char,
+    hold_color: Rgb,
     final_color: Rgb,
+    accent_color: Rgb,
     pull_progress: f64,
     pull_speed: f64,
-    // Expansion — per-char speed adds slight variation
     expand_progress: f64,
     expand_speed: f64,
 }
@@ -50,17 +49,37 @@ pub struct WormholeEffect {
     hold_frame: usize,
 }
 
+/// Map an angle (radians) to a warp-exit accent: white → light blue.
+fn warp_accent(angle: f64) -> Rgb {
+    let tau = std::f64::consts::TAU;
+    let t = ((angle + std::f64::consts::PI) / tau).fract();
+    // light blue (130,210,255) → white (255,255,255)
+    Rgb::new(
+        (130.0 + 125.0 * t) as u8,
+        (210.0 + 45.0 * t) as u8,
+        255,
+    )
+}
+
 impl WormholeEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height) = (grid.width, grid.height);
         let center_y = height as f64 / 2.0;
         let center_x = width as f64 / 2.0;
 
-        let final_gradient = Gradient::new(
+        let hold_gradient = Gradient::new(
             &[
                 Rgb::from_hex("8A008A"),
                 Rgb::from_hex("00D1FF"),
-                Rgb::from_hex("FFFFFF"),
+                Rgb::from_hex("80E0FF"),
+            ],
+            9,
+        );
+        let final_gradient = Gradient::new(
+            &[
+                Rgb::from_hex("80E0FF"),
+                Rgb::from_hex("00D1FF"),
+                Rgb::from_hex("8A008A"),
             ],
             9,
         );
@@ -69,19 +88,21 @@ impl WormholeEffect {
         let mut chars = Vec::new();
 
         for (y, x) in grid.char_positions() {
+            let hold_color = hold_gradient.color_at_coord(
+                y, x, height, width, GradientDirection::Radial,
+            );
             let final_color = final_gradient.color_at_coord(
-                y,
-                x,
-                height,
-                width,
-                GradientDirection::Radial,
+                y, x, height, width, GradientDirection::Radial,
             );
             let dist = ((y as f64 - center_y).powi(2) + (x as f64 - center_x).powi(2))
                 .sqrt()
                 .max(1.0);
             let pull_speed = rng.gen_range(0.08..0.14) / dist;
-            // Expand speed: distance-aware, fast burst outward
             let expand_speed = rng.gen_range(0.15..0.25) / dist;
+
+            // Accent color based on angle from center — creates rainbow burst
+            let angle = (y as f64 - center_y).atan2(x as f64 - center_x);
+            let accent_color = warp_accent(angle);
 
             chars.push(WHChar {
                 final_y: y,
@@ -89,7 +110,9 @@ impl WormholeEffect {
                 cur_y: y as f64,
                 cur_x: x as f64,
                 original_ch: grid.cells[y][x].ch,
+                hold_color,
                 final_color,
+                accent_color,
                 pull_progress: 0.0,
                 pull_speed,
                 expand_progress: 0.0,
@@ -160,7 +183,6 @@ impl WormholeEffect {
         }
 
         if self.chars.iter().all(|ch| ch.pull_progress >= 1.0) {
-            // All consumed → start expanding from center
             for ch in &mut self.chars {
                 ch.cur_y = self.center_y;
                 ch.cur_x = self.center_x;
@@ -200,7 +222,7 @@ impl WormholeEffect {
                     let cell = &mut grid.cells[ch.final_y][ch.final_x];
                     cell.visible = true;
                     cell.ch = ch.original_ch;
-                    cell.fg = Some(ch.final_color.to_crossterm());
+                    cell.fg = Some(ch.hold_color.to_crossterm());
                 }
             }
             Phase::Pulling => {
@@ -221,7 +243,7 @@ impl WormholeEffect {
                     cell.visible = true;
                     cell.ch = ch.original_ch;
                     let brightness = 1.0 - ch.pull_progress;
-                    cell.fg = Some(ch.final_color.adjust_brightness(brightness).to_crossterm());
+                    cell.fg = Some(ch.hold_color.adjust_brightness(brightness).to_crossterm());
                 }
             }
             Phase::Expanding | Phase::Done => {
@@ -239,8 +261,13 @@ impl WormholeEffect {
                     let cell = &mut grid.cells[ry as usize][rx as usize];
                     cell.visible = true;
                     cell.ch = ch.original_ch;
-                    // White flash fading to final color as chars expand outward
-                    let color = Rgb::lerp(white, ch.final_color, ch.expand_progress);
+                    // Gradient: white → rainbow accent → final color
+                    let p = ch.expand_progress;
+                    let color = if p < 0.35 {
+                        Rgb::lerp(white, ch.accent_color, p / 0.35)
+                    } else {
+                        Rgb::lerp(ch.accent_color, ch.final_color, (p - 0.35) / 0.65)
+                    };
                     cell.fg = Some(color.to_crossterm());
                 }
             }
