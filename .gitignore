@@ -1,3 +1,4 @@
+# Ignore Rust build artifacts
 /target
 
 # GitHub Actions local run artifacts (act)
