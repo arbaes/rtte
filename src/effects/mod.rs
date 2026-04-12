@@ -35,6 +35,7 @@ pub mod unstable;
 pub mod vhstape;
 pub mod waves;
 pub mod wipe;
+pub mod wormhole;
 
 // Re-exports for test convenience (use crate::effects::*)
 #[cfg(test)]
@@ -50,9 +51,13 @@ pub use {
     smoke::SmokeEffect, spotlights::SpotlightsEffect, spray::SprayEffect, swarm::SwarmEffect,
     sweep::SweepEffect, synthgrid::SynthGridEffect, thunderstorm::ThunderstormEffect,
     unstable::UnstableEffect, vhstape::VHSTapeEffect, waves::WavesEffect, wipe::WipeEffect,
+    wormhole::WormholeEffect,
 };
 
 use crate::engine::Grid;
+
+/// Effects that are RTTE originals, not present in TTE.
+pub const EXCLUSIVE_NAMES: &[&str] = &["wormhole"];
 
 /// Common trait for all effects.
 pub trait Effect {
@@ -63,6 +68,7 @@ pub trait Effect {
 pub struct EffectInfo {
     pub name: &'static str,
     pub description: &'static str,
+    pub extra_effect: bool,
     pub create: fn(&Grid) -> Box<dyn Effect>,
 }
 
@@ -115,15 +121,18 @@ impl_effect!(
     vhstape::VHSTapeEffect,
     waves::WavesEffect,
     wipe::WipeEffect,
+    wormhole::WormholeEffect,
 );
 
 /// Registry of all effects — metadata + constructor, sourced from each module.
+/// Each module must define NAME, DESCRIPTION, and EXCLUSIVE constants.
 macro_rules! register_effects {
     ($($mod:ident :: $ty:ident),* $(,)?) => {
         pub const ALL_EFFECTS: &[EffectInfo] = &[
             $(EffectInfo {
                 name: $mod::NAME,
                 description: $mod::DESCRIPTION,
+                extra_effect: $mod::EXTRA_EFFECT,
                 create: |grid| Box::new($mod::$ty::new(grid)),
             }),*
         ];
@@ -168,4 +177,5 @@ register_effects!(
     vhstape::VHSTapeEffect,
     waves::WavesEffect,
     wipe::WipeEffect,
+    wormhole::WormholeEffect,
 );

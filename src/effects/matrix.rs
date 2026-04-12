@@ -2,6 +2,7 @@
 
 pub const NAME: &str = "matrix";
 pub const DESCRIPTION: &str = "Matrix digital rain effect.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

@@ -15,9 +15,21 @@ use rand::seq::SliceRandom;
 use std::io::{self, Read};
 
 fn build_effects_help() -> String {
-    let mut s = String::from("Available Effects:\n");
+    let mut s = String::from("TTE Effects:\n");
     for info in effects::ALL_EFFECTS {
-        s.push_str(&format!("  {:<20}{}\n", info.name, info.description));
+        if !info.extra_effect {
+            s.push_str(&format!("  {:<20}{}\n", info.name, info.description));
+        }
+    }
+    let extras: Vec<_> = effects::ALL_EFFECTS
+        .iter()
+        .filter(|e| e.extra_effect)
+        .collect();
+    if !extras.is_empty() {
+        s.push_str("\nExtra Effects:\n");
+        for info in extras {
+            s.push_str(&format!("  {:<20}{}\n", info.name, info.description));
+        }
     }
     s.push_str("\nEx: ls -a | rtte decrypt\n    echo HELLO | rtte --random-effect");
     s

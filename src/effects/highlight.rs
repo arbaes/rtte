@@ -6,6 +6,7 @@
 
 pub const NAME: &str = "highlight";
 pub const DESCRIPTION: &str = "Run a specular highlight across the text.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

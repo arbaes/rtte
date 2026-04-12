@@ -5,6 +5,7 @@
 
 pub const NAME: &str = "laseretch";
 pub const DESCRIPTION: &str = "A laser etches characters onto the terminal.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

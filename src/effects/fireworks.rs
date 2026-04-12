@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "fireworks";
 pub const DESCRIPTION: &str = "Characters launch and explode like fireworks and fall into place.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

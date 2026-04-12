@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "waves";
 pub const DESCRIPTION: &str = "Waves travel across the terminal leaving behind the characters.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

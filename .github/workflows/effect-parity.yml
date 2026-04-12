@@ -62,28 +62,28 @@ jobs:
           # Effects in rtte but not in TTE
           extra=$(comm -13 <(echo "$tte_effects") <(echo "$rtte_effects"))
 
-          # Export counts for badge
-          echo "rtte_count=$rtte_count" >> "$GITHUB_OUTPUT"
+          # Matched = TTE effects that exist in rtte
+          matched=$(comm -12 <(echo "$tte_effects") <(echo "$rtte_effects") | wc -l)
+
+          # Export counts for badge (matched/total TTE)
+          echo "matched=$matched" >> "$GITHUB_OUTPUT"
           echo "tte_count=$tte_count" >> "$GITHUB_OUTPUT"
 
-          if [ -n "$missing" ] || [ -n "$extra" ]; then
+          if [ -n "$extra" ]; then
+            echo ""
+            echo "RTTE-exclusive effects (not in TTE):"
+            echo "$extra"
+          fi
+
+          if [ -n "$missing" ]; then
             echo "parity=false" >> "$GITHUB_OUTPUT"
-            echo "::error::Effect parity mismatch!"
-            if [ -n "$missing" ]; then
-              echo ""
-              echo "Missing from rtte (present in TTE):"
-              echo "$missing"
-            fi
-            if [ -n "$extra" ]; then
-              echo ""
-              echo "Extra in rtte (not in TTE):"
-              echo "$extra"
-            fi
+            echo "::error::Missing TTE effects in rtte:"
+            echo "$missing"
             exit 1
           fi
 
           echo "parity=true" >> "$GITHUB_OUTPUT"
-          echo "All $rtte_count/$tte_count effects match."
+          echo "All $tte_count TTE effects implemented ($matched/$tte_count)."
 
       - name: Update badge
         if: always() && github.ref == 'refs/heads/master'
@@ -93,5 +93,5 @@ jobs:
           gistID: edf5217236148a1aa1923659ac1302eb
           filename: tte-effect-parity.json
           label: TTE Effect Parity
-          message: "${{ steps.parity.outputs.rtte_count }}/${{ steps.parity.outputs.tte_count }}"
+          message: "${{ steps.parity.outputs.matched }}/${{ steps.parity.outputs.tte_count }}"
           color: "${{ steps.parity.outputs.parity == 'true' && 'brightgreen' || 'red' }}"

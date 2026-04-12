@@ -2,6 +2,7 @@
 
 pub const NAME: &str = "rings";
 pub const DESCRIPTION: &str = "Characters are dispersed and form into spinning rings.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

@@ -2,6 +2,7 @@
 
 pub const NAME: &str = "orbittingvolley";
 pub const DESCRIPTION: &str = "Four launchers orbit the canvas firing volleys of characters inward to build the input text from the center out.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

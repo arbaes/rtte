@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "expand";
 pub const DESCRIPTION: &str = "Expands the text from a single point.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

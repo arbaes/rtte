@@ -2,6 +2,7 @@
 
 pub const NAME: &str = "unstable";
 pub const DESCRIPTION: &str = "Spawn characters jumbled, explode them to the edge of the canvas, then reassemble them in the correct layout.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

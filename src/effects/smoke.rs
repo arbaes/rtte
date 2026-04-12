@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "smoke";
 pub const DESCRIPTION: &str = "Smoke floods the canvas colorizing any characters it crosses.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

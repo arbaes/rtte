@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "bubbles";
 pub const DESCRIPTION: &str = "Characters are formed into bubbles that float down and pop.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

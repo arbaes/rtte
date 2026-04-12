@@ -5,6 +5,7 @@
 
 pub const NAME: &str = "decrypt";
 pub const DESCRIPTION: &str = "Display a movie style decryption effect.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

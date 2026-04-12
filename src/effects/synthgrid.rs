@@ -3,6 +3,7 @@
 pub const NAME: &str = "synthgrid";
 pub const DESCRIPTION: &str =
     "Create a grid which fills with characters dissolving into the final text.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

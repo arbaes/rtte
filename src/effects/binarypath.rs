@@ -7,6 +7,7 @@
 pub const NAME: &str = "binarypath";
 pub const DESCRIPTION: &str =
     "Binary representations of each character move towards the home coordinate of the character.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

@@ -6,6 +6,7 @@
 
 pub const NAME: &str = "scattered";
 pub const DESCRIPTION: &str = "Text is scattered across the canvas and moves into position.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

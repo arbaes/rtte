@@ -4,6 +4,7 @@
 pub const NAME: &str = "slice";
 pub const DESCRIPTION: &str =
     "Slices the input in half and slides it into place from opposite directions.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

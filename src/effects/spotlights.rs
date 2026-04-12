@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "spotlights";
 pub const DESCRIPTION: &str = "Spotlights search the text area, illuminating characters, before converging in the center and expanding.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

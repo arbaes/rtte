@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "spray";
 pub const DESCRIPTION: &str = "Draws the characters spawning at varying rates from a single point.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

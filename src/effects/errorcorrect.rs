@@ -4,6 +4,7 @@
 pub const NAME: &str = "errorcorrect";
 pub const DESCRIPTION: &str =
     "Some characters start in the wrong position and are corrected in sequence.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

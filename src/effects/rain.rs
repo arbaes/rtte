@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "rain";
 pub const DESCRIPTION: &str = "Rain characters from the top of the canvas.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

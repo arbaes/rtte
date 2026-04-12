@@ -3,6 +3,7 @@
 pub const NAME: &str = "vhstape";
 pub const DESCRIPTION: &str =
     "Lines of characters glitch left and right and lose detail like an old VHS tape.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

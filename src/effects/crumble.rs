@@ -3,6 +3,7 @@
 pub const NAME: &str = "crumble";
 pub const DESCRIPTION: &str =
     "Characters lose color and crumble into dust, vacuumed up, and reformed.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

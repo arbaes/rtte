@@ -5,6 +5,7 @@
 
 pub const NAME: &str = "print";
 pub const DESCRIPTION: &str = "Lines are printed one at a time following a print head. Print head performs line feed, carriage return.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

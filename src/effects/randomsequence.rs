@@ -6,6 +6,7 @@
 
 pub const NAME: &str = "randomsequence";
 pub const DESCRIPTION: &str = "Prints the input data in a random sequence.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

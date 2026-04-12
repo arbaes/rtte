@@ -10,6 +10,7 @@
 pub const NAME: &str = "beams";
 pub const DESCRIPTION: &str =
     "Create beams which travel over the canvas illuminating the characters behind them.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

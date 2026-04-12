@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "slide";
 pub const DESCRIPTION: &str = "Slide characters into view from outside the terminal.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

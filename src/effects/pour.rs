@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "pour";
 pub const DESCRIPTION: &str = "Pours the characters into position from the given direction.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

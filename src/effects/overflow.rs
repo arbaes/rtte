@@ -2,6 +2,7 @@
 
 pub const NAME: &str = "overflow";
 pub const DESCRIPTION: &str = "Input text overflows and scrolls the terminal in a random order until eventually appearing ordered.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

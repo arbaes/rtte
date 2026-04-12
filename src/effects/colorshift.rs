@@ -2,6 +2,7 @@
 
 pub const NAME: &str = "colorshift";
 pub const DESCRIPTION: &str = "Display a gradient that shifts colors across the terminal.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

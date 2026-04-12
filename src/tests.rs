@@ -132,6 +132,7 @@ effect_test!(unstable_completes, UnstableEffect);
 effect_test!(vhstape_completes, VHSTapeEffect);
 effect_test!(waves_completes, WavesEffect);
 effect_test!(wipe_completes, WipeEffect);
+effect_test!(wormhole_completes, WormholeEffect);
 
 // ── edge-case tests (tiny / single-char input) ────────────────────────────────
 
@@ -172,6 +173,7 @@ effect_test!(unstable_tiny, UnstableEffect, TINY_INPUT);
 effect_test!(vhstape_tiny, VHSTapeEffect, TINY_INPUT);
 effect_test!(waves_tiny, WavesEffect, TINY_INPUT);
 effect_test!(wipe_tiny, WipeEffect, TINY_INPUT);
+effect_test!(wormhole_tiny, WormholeEffect, TINY_INPUT);
 
 // ── deterministic behaviour tests ────────────────────────────────────────────
 //
@@ -347,4 +349,78 @@ fn binarypath_sparse_input_completes() {
     assert!(frames > 0, "effect should take at least 1 frame");
     assert_eq!(grid.cells[0][2].ch, 'A');
     assert_eq!(grid.cells[2][2].ch, 'B');
+}
+
+// ── blackhole-specific tests ────────────────────────────────────────────────
+
+/// Space cells must remain spaces after blackhole completes.
+#[test]
+fn blackhole_spaces_not_corrupted() {
+    let input = "A B C";
+    let mut grid = Grid::from_input(input);
+    let expected = Grid::from_input(input);
+    let mut effect = BlackholeEffect::new(&grid);
+    run_to_done(&mut |g| effect.tick(g), &mut grid, "BlackholeEffect");
+
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            assert_eq!(
+                grid.cells[y][x].ch, expected.cells[y][x].ch,
+                "blackhole: cell ({},{}) has '{}' expected '{}'",
+                y, x, grid.cells[y][x].ch, expected.cells[y][x].ch
+            );
+        }
+    }
+}
+
+/// Blackhole should handle sparse input with mostly spaces.
+#[test]
+fn blackhole_sparse_input_completes() {
+    let input = "  A  \n     \n  B  ";
+    let mut grid = Grid::from_input(input);
+    let mut effect = BlackholeEffect::new(&grid);
+    let frames = run_to_done(&mut |g| effect.tick(g), &mut grid, "BlackholeEffect");
+    assert!(frames > 0);
+    assert_eq!(grid.cells[0][2].ch, 'A');
+    assert_eq!(grid.cells[2][2].ch, 'B');
+}
+
+// ── wormhole-specific tests ─────────────────────────────────────────────────
+
+/// Space cells must remain spaces after wormhole completes.
+#[test]
+fn wormhole_spaces_not_corrupted() {
+    let input = "A B C";
+    let mut grid = Grid::from_input(input);
+    let expected = Grid::from_input(input);
+    let mut effect = WormholeEffect::new(&grid);
+    run_to_done(&mut |g| effect.tick(g), &mut grid, "WormholeEffect");
+
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            assert_eq!(
+                grid.cells[y][x].ch, expected.cells[y][x].ch,
+                "wormhole: cell ({},{}) has '{}' expected '{}'",
+                y, x, grid.cells[y][x].ch, expected.cells[y][x].ch
+            );
+        }
+    }
+}
+
+/// After the flash phase, all chars should be at their final positions
+/// with visible=true.
+#[test]
+fn wormhole_all_visible_after_completion() {
+    let input = TEST_INPUT;
+    let mut grid = Grid::from_input(input);
+    let mut effect = WormholeEffect::new(&grid);
+    run_to_done(&mut |g| effect.tick(g), &mut grid, "WormholeEffect");
+
+    for (y, x) in Grid::from_input(input).char_positions() {
+        assert!(
+            grid.cells[y][x].visible,
+            "wormhole: cell ({},{}) not visible after completion",
+            y, x
+        );
+    }
 }

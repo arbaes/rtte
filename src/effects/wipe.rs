@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "wipe";
 pub const DESCRIPTION: &str = "Wipes the text across the terminal to reveal characters.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

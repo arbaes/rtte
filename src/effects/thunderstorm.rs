@@ -2,6 +2,7 @@
 
 pub const NAME: &str = "thunderstorm";
 pub const DESCRIPTION: &str = "Create a thunderstorm in the terminal.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

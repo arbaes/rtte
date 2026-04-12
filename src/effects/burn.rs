@@ -3,6 +3,7 @@
 
 pub const NAME: &str = "burn";
 pub const DESCRIPTION: &str = "Burns vertically in the canvas.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};

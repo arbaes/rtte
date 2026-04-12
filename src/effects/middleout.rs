@@ -4,6 +4,7 @@
 pub const NAME: &str = "middleout";
 pub const DESCRIPTION: &str =
     "Text expands in a single row or column in the middle of the canvas then out.";
+pub const EXTRA_EFFECT: bool = false;
 
 use crate::easing;
 use crate::engine::Grid;

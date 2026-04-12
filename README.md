@@ -12,6 +12,7 @@ Rust reimplementation of [TerminalTextEffects (TTE)](https://github.com/ChrisBui
 [![CI](https://github.com/arbaes/rtte/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/arbaes/rtte/actions/workflows/ci.yml)
 [![Cargo Audit](https://github.com/arbaes/rtte/actions/workflows/security-audit.yml/badge.svg)](https://github.com/arbaes/rtte/actions/workflows/security-audit.yml)
 [![TTE Effect Parity](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/arbaes/edf5217236148a1aa1923659ac1302eb/raw/tte-effect-parity.json)](https://github.com/arbaes/rtte/actions/workflows/effect-parity.yml)
+[![Extra Effects](https://img.shields.io/badge/Extra_Effects-1-blue)]()
 ---
 
 ## Disclaimer
@@ -81,6 +82,15 @@ echo "Hello, world!" | toilet -f "DOS Rebel" | rtte --random-effect
 | `vhstape` | VHS tape degradation effect |
 | `waves` | Wave motion ripples through the text |
 | `wipe` | Diagonal wipe reveals the text |
+
+</details>
+
+<details>
+<summary>Extra effects (RTTE only)</summary>
+
+| Effect | Description |
+|---|---|
+| `wormhole` | Characters are pulled into a wormhole and violently restored with a flash |
 
 </details>
 
