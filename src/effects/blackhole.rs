@@ -162,13 +162,8 @@ impl BlackholeEffect {
 
         for (i, &(y, x)) in positions.iter().enumerate() {
             let is_ring = i < n_ring;
-            let final_color = final_gradient.color_at_coord(
-                y,
-                x,
-                height,
-                width,
-                GradientDirection::Diagonal,
-            );
+            let final_color =
+                final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
             let star_symbol = STAR_SYMBOLS[rng.gen_range(0..STAR_SYMBOLS.len())];
             let star_color = starfield_gradient.at(rng.gen_range(0.0..1.0));
 
@@ -239,11 +234,7 @@ impl BlackholeEffect {
             });
         }
 
-        let formation_delay = if n_ring > 0 {
-            (100 / n_ring).max(6)
-        } else {
-            6
-        };
+        let formation_delay = if n_ring > 0 { (100 / n_ring).max(6) } else { 6 };
         // TTE uses linear speed 0.45 along the elliptical ring path.
         // Convert to angular speed: ω = 2π·v / C, where C ≈ π·r·(1+ASPECT).
         let angular_speed = 0.9 / (radius * (1.0 + ASPECT)).max(1.0);
@@ -585,8 +576,7 @@ impl BlackholeEffect {
             }
             Phase::Settling | Phase::Done => {
                 for ch in &self.chars {
-                    let color =
-                        Rgb::lerp(ch.explode_color, ch.final_color, ch.settle_progress);
+                    let color = Rgb::lerp(ch.explode_color, ch.final_color, ch.settle_progress);
                     self.render_char(grid, ch, ch.original_ch, color);
                 }
             }

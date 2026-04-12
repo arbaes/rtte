@@ -54,11 +54,7 @@ fn warp_accent(angle: f64) -> Rgb {
     let tau = std::f64::consts::TAU;
     let t = ((angle + std::f64::consts::PI) / tau).fract();
     // light blue (130,210,255) → white (255,255,255)
-    Rgb::new(
-        (130.0 + 125.0 * t) as u8,
-        (210.0 + 45.0 * t) as u8,
-        255,
-    )
+    Rgb::new((130.0 + 125.0 * t) as u8, (210.0 + 45.0 * t) as u8, 255)
 }
 
 impl WormholeEffect {
@@ -88,12 +84,10 @@ impl WormholeEffect {
         let mut chars = Vec::new();
 
         for (y, x) in grid.char_positions() {
-            let hold_color = hold_gradient.color_at_coord(
-                y, x, height, width, GradientDirection::Radial,
-            );
-            let final_color = final_gradient.color_at_coord(
-                y, x, height, width, GradientDirection::Radial,
-            );
+            let hold_color =
+                hold_gradient.color_at_coord(y, x, height, width, GradientDirection::Radial);
+            let final_color =
+                final_gradient.color_at_coord(y, x, height, width, GradientDirection::Radial);
             let dist = ((y as f64 - center_y).powi(2) + (x as f64 - center_x).powi(2))
                 .sqrt()
                 .max(1.0);
@@ -232,11 +226,7 @@ impl WormholeEffect {
                     }
                     let ry = ch.cur_y.round() as isize;
                     let rx = ch.cur_x.round() as isize;
-                    if ry < 0
-                        || rx < 0
-                        || ry as usize >= self.height
-                        || rx as usize >= self.width
-                    {
+                    if ry < 0 || rx < 0 || ry as usize >= self.height || rx as usize >= self.width {
                         continue;
                     }
                     let cell = &mut grid.cells[ry as usize][rx as usize];
@@ -251,11 +241,7 @@ impl WormholeEffect {
                 for ch in &self.chars {
                     let ry = ch.cur_y.round() as isize;
                     let rx = ch.cur_x.round() as isize;
-                    if ry < 0
-                        || rx < 0
-                        || ry as usize >= self.height
-                        || rx as usize >= self.width
-                    {
+                    if ry < 0 || rx < 0 || ry as usize >= self.height || rx as usize >= self.width {
                         continue;
                     }
                     let cell = &mut grid.cells[ry as usize][rx as usize];
