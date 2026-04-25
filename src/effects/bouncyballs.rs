@@ -51,13 +51,14 @@ struct BallChar {
 pub struct BouncyBallsEffect {
     chars: Vec<BallChar>,
     // Groups by row (bottom to top)
-    groups: Vec<Vec<usize>>,
+    groups: std::collections::VecDeque<Vec<usize>>,
+    pending: Vec<usize>,
     ball_delay: usize,
     delay_counter: usize,
-    activated_up_to: usize,
     dm: usize,
     width: usize,
     height: usize,
+    original_chars: Vec<Vec<char>>,
 }
 
 impl BouncyBallsEffect {
@@ -65,6 +66,12 @@ impl BouncyBallsEffect {
         let width = grid.width;
         let height = grid.height;
         let dm: usize = 2;
+
+        let original_chars: Vec<Vec<char>> = grid
+            .cells
+            .iter()
+            .map(|row| row.iter().map(|c| c.ch).collect())
+            .collect();
 
         let final_gradient = Gradient::new(&[Rgb::from_hex("f8ffae"), Rgb::from_hex("43c6ac")], 12);
 
@@ -76,9 +83,13 @@ impl BouncyBallsEffect {
 
         for (y, row) in row_chars.iter_mut().enumerate() {
             for x in 0..width {
+                let original_ch = grid.cells[y][x].ch;
+                if original_ch == ' ' {
+                    continue;
+                }
                 let final_color =
                     final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
-                let start_y = -(rng.gen_range(1.0..1.5) * height as f64);
+                let start_y = -(rng.gen_range(0.0..0.5) * height as f64);
                 let dist = (y as f64 - start_y).abs().max(1.0);
                 let speed = (0.45 / dist) / dm as f64;
 
@@ -90,7 +101,7 @@ impl BouncyBallsEffect {
                     final_x: x,
                     start_y,
                     cur_y: start_y,
-                    original_ch: grid.cells[y][x].ch,
+                    original_ch,
                     final_color,
                     ball_color: BALL_COLORS[rng.gen_range(0..BALL_COLORS.len())],
                     ball_symbol: BALL_SYMBOLS[rng.gen_range(0..BALL_SYMBOLS.len())],
@@ -106,45 +117,42 @@ impl BouncyBallsEffect {
         }
 
         // Reverse to get bottom rows first
-        let mut groups: Vec<Vec<usize>> = Vec::new();
+        let mut groups: std::collections::VecDeque<Vec<usize>> = std::collections::VecDeque::new();
         for y in (0..height).rev() {
             if !row_chars[y].is_empty() {
-                groups.push(row_chars[y].clone());
+                groups.push_back(row_chars[y].clone());
             }
         }
 
         BouncyBallsEffect {
             chars,
             groups,
-            ball_delay: 4 * dm,
+            pending: Vec::new(),
+            ball_delay: 4,
             delay_counter: 0,
-            activated_up_to: 0,
             dm,
             width,
             height,
+            original_chars,
         }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         let mut rng = rand::thread_rng();
 
-        // Activate groups with delay
-        if self.activated_up_to < self.groups.len() {
+        if self.pending.is_empty() {
+            if let Some(next_group) = self.groups.pop_front() {
+                self.pending = next_group;
+            }
+        }
+        if !self.pending.is_empty() {
             if self.delay_counter == 0 {
-                // Activate 2-6 random from next group
-                let group = &self.groups[self.activated_up_to];
-                let count = rng.gen_range(2..=6).min(group.len());
-                let mut indices: Vec<usize> = group.clone();
-                use rand::seq::SliceRandom;
-                indices.shuffle(&mut rng);
-                for &idx in indices.iter().take(count) {
+                let count = rng.gen_range(2..=6).min(self.pending.len());
+                for _ in 0..count {
+                    let i = rng.gen_range(0..self.pending.len());
+                    let idx = self.pending.swap_remove(i);
                     self.chars[idx].active = true;
                 }
-                // Activate remaining too (they all need to go)
-                for &idx in &indices[count..] {
-                    self.chars[idx].active = true;
-                }
-                self.activated_up_to += 1;
                 self.delay_counter = self.ball_delay;
             } else {
                 self.delay_counter -= 1;
@@ -152,9 +160,13 @@ impl BouncyBallsEffect {
         }
 
         // Tick
-        let mut all_done = self.activated_up_to >= self.groups.len();
+        let mut all_done = self.groups.is_empty() && self.pending.is_empty();
         for ch in &mut self.chars {
-            if !ch.active || ch.done {
+            if !ch.active {
+                all_done = false;
+                continue;
+            }
+            if ch.done {
                 continue;
             }
             if !ch.landed {
@@ -177,9 +189,11 @@ impl BouncyBallsEffect {
         }
 
         // Render
-        for row in &mut grid.cells {
-            for cell in row {
+        for (y, row) in grid.cells.iter_mut().enumerate() {
+            for (x, cell) in row.iter_mut().enumerate() {
                 cell.visible = false;
+                cell.ch = self.original_chars[y][x];
+                cell.fg = None;
             }
         }
 
