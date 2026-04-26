@@ -195,18 +195,17 @@ impl ThunderstormEffect {
                             '/' => {
                                 cx = cx.saturating_sub(1);
                             }
-                            '\\' => {
-                                if cx + 1 < self.width {
-                                    cx += 1;
-                                }
+                            '\\' if cx + 1 < self.width => {
+                                cx += 1;
                             }
                             _ => {}
                         }
                         // Branch chance
                         if rng.gen::<f64>() < 0.05 {
                             let mut bx = cx;
-                            let mut by = cy;
-                            for _ in 0..rng.gen_range(2..6) {
+                            let count = rng.gen_range(2..6);
+                            for offset in 0..count {
+                                let by = cy + offset;
                                 if by >= self.height {
                                     break;
                                 }
@@ -217,15 +216,12 @@ impl ThunderstormEffect {
                                     symbol: bsym,
                                     life: 4 * dm,
                                 });
-                                by += 1;
                                 match bsym {
                                     '/' => {
                                         bx = bx.saturating_sub(1);
                                     }
-                                    '\\' => {
-                                        if bx + 1 < self.width {
-                                            bx += 1;
-                                        }
+                                    '\\' if bx + 1 < self.width => {
+                                        bx += 1;
                                     }
                                     _ => {}
                                 }

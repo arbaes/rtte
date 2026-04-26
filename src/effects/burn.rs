@@ -156,9 +156,9 @@ impl BurnEffect {
 
         let mut in_bounds = vec![vec![false; width]; height];
         if !text_positions.is_empty() {
-            for y in text_top..=text_bottom {
-                for x in text_left..=text_right {
-                    in_bounds[y][x] = true;
+            for row in in_bounds.iter_mut().take(text_bottom + 1).skip(text_top) {
+                for cell in row.iter_mut().take(text_right + 1).skip(text_left) {
+                    *cell = true;
                 }
             }
         }

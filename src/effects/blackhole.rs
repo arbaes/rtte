@@ -234,7 +234,7 @@ impl BlackholeEffect {
             });
         }
 
-        let formation_delay = if n_ring > 0 { (100 / n_ring).max(6) } else { 6 };
+        let formation_delay = 100usize.checked_div(n_ring).unwrap_or(6).max(6);
         // TTE uses linear speed 0.45 along the elliptical ring path.
         // Convert to angular speed: ω = 2π·v / C, where C ≈ π·r·(1+ASPECT).
         let angular_speed = 0.9 / (radius * (1.0 + ASPECT)).max(1.0);
