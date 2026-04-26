@@ -7,9 +7,14 @@ pub const EXTRA_EFFECT: bool = false;
 use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 
+#[derive(Clone, Copy, PartialEq)]
+enum Phase {
+    Cycling,
+    Transitioning,
+    Done,
+}
+
 pub struct ColorShiftEffect {
-    frame: usize,
-    dm: usize,
     width: usize,
     height: usize,
     spectrum: Vec<Rgb>,
@@ -18,16 +23,18 @@ pub struct ColorShiftEffect {
     current_cycle: usize,
     spectrum_offset: usize,
     step_counter: usize,
-    final_gradient: Gradient,
-    done: bool,
+    phase: Phase,
+    trans_frame: usize,
+    trans_total: usize,
+    final_colors: Vec<Vec<Rgb>>,
+    radial_shift: Vec<Vec<usize>>,
     original: Vec<Vec<char>>,
 }
 
 impl ColorShiftEffect {
     pub fn new(grid: &Grid) -> Self {
-        let (width, height, dm) = (grid.width, grid.height, 2usize);
+        let (width, height) = (grid.width, grid.height);
 
-        // Rainbow spectrum
         let rainbow_stops = [
             Rgb::from_hex("e81416"),
             Rgb::from_hex("ffa500"),
@@ -38,80 +45,122 @@ impl ColorShiftEffect {
             Rgb::from_hex("70369d"),
         ];
         let spectrum_gradient = Gradient::new(&rainbow_stops, 12);
-        // Build a looping spectrum
         let mut spectrum = spectrum_gradient.spectrum().to_vec();
-        // Add reversed for smooth loop
         let mut rev = spectrum.clone();
         rev.reverse();
-        rev.pop(); // avoid duplicate at seam
+        rev.pop();
         spectrum.extend(rev);
 
         let final_gradient = Gradient::new(&rainbow_stops, 12);
 
-        let mut original = Vec::new();
+        let mut text_top = usize::MAX;
+        let mut text_bottom = 0usize;
+        let mut text_left = usize::MAX;
+        let mut text_right = 0usize;
+        let mut has_text = false;
+        for y in 0..height {
+            for x in 0..width {
+                if grid.cells[y][x].ch != ' ' {
+                    has_text = true;
+                    text_top = text_top.min(y);
+                    text_bottom = text_bottom.max(y);
+                    text_left = text_left.min(x);
+                    text_right = text_right.max(x);
+                }
+            }
+        }
+        if !has_text {
+            text_top = 0;
+            text_bottom = height.saturating_sub(1);
+            text_left = 0;
+            text_right = width.saturating_sub(1);
+        }
+        let text_h = (text_bottom - text_top + 1) as f64;
+        let text_w = (text_right - text_left + 1) as f64;
+        let center_y = text_h / 2.0;
+        let center_x = text_w / 2.0;
+        let max_dist = (text_w * text_w + (text_h * 2.0).powi(2)).sqrt();
+        let half_max = (max_dist / 2.0).max(1.0);
+
+        let spec_len = spectrum.len();
+        let mut radial_shift = vec![vec![0usize; width]; height];
+        let mut final_colors = vec![vec![Rgb::new(0, 0, 0); width]; height];
+        for y in 0..height {
+            for x in 0..width {
+                let ry = ((y as isize - text_top as isize) + 1) as f64;
+                let rx = ((x as isize - text_left as isize) + 1) as f64;
+                let dy = ry - center_y;
+                let dx = rx - center_x;
+                let dist = (dx * dx + (dy * 2.0).powi(2)).sqrt();
+                let norm = (dist / half_max).clamp(0.0, 1.0);
+                radial_shift[y][x] = ((spec_len as f64 * norm) as usize) % spec_len.max(1);
+
+                let fy = y.saturating_sub(text_top);
+                let fx = x.saturating_sub(text_left);
+                final_colors[y][x] = final_gradient.color_at_coord(
+                    fy,
+                    fx,
+                    (text_bottom - text_top).max(1),
+                    (text_right - text_left).max(1),
+                    GradientDirection::Vertical,
+                );
+            }
+        }
+
+        let mut original = Vec::with_capacity(height);
         for y in 0..height {
             let row: Vec<char> = (0..width).map(|x| grid.cells[y][x].ch).collect();
             original.push(row);
         }
 
+        let gradient_frames = 2usize;
+        let trans_total = 9 * gradient_frames;
+
         ColorShiftEffect {
-            frame: 0,
-            dm,
             width,
             height,
             spectrum,
-            gradient_frames: 2 * dm,
+            gradient_frames,
             cycles: 3,
             current_cycle: 0,
             spectrum_offset: 0,
             step_counter: 0,
-            final_gradient,
-            done: false,
+            phase: Phase::Cycling,
+            trans_frame: 0,
+            trans_total,
+            final_colors,
+            radial_shift,
             original,
         }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
-        if self.done {
-            return true;
-        }
-        self.frame += 1;
-        self.step_counter += 1;
+        let spec_len = self.spectrum.len().max(1);
 
-        if self.step_counter >= self.gradient_frames {
-            self.step_counter = 0;
-            self.spectrum_offset += 1;
-            if self.spectrum_offset >= self.spectrum.len() {
-                self.spectrum_offset = 0;
-                self.current_cycle += 1;
-                if self.current_cycle >= self.cycles {
-                    self.done = true;
-                    // Final state
-                    for y in 0..self.height {
-                        for x in 0..self.width {
-                            let cell = &mut grid.cells[y][x];
-                            cell.visible = true;
-                            cell.ch = self.original[y][x];
-                            let fc = self.final_gradient.color_at_coord(
-                                y,
-                                x,
-                                self.height,
-                                self.width,
-                                GradientDirection::Vertical,
-                            );
-                            cell.fg = Some(fc.to_crossterm());
+        match self.phase {
+            Phase::Cycling => {
+                self.step_counter += 1;
+                if self.step_counter >= self.gradient_frames {
+                    self.step_counter = 0;
+                    self.spectrum_offset += 1;
+                    if self.spectrum_offset >= spec_len {
+                        self.spectrum_offset = 0;
+                        self.current_cycle += 1;
+                        if self.current_cycle >= self.cycles {
+                            self.phase = Phase::Transitioning;
+                            self.trans_frame = 0;
                         }
                     }
-                    return true;
                 }
             }
+            Phase::Transitioning => {
+                self.trans_frame += 1;
+                if self.trans_frame >= self.trans_total {
+                    self.phase = Phase::Done;
+                }
+            }
+            Phase::Done => {}
         }
-
-        let spec_len = self.spectrum.len();
-        // Radial travel direction
-        let center_y = self.height as f64 / 2.0;
-        let center_x = self.width as f64 / 2.0;
-        let max_dist = ((center_y * center_y) + (center_x * center_x)).sqrt();
 
         for y in 0..self.height {
             for x in 0..self.width {
@@ -119,17 +168,25 @@ impl ColorShiftEffect {
                 cell.visible = true;
                 cell.ch = self.original[y][x];
 
-                // Radial distance index
-                let dy = y as f64 - center_y;
-                let dx = x as f64 - center_x;
-                let dist = (dy * dy + dx * dx).sqrt();
-                let norm_dist = dist / max_dist.max(1.0);
-                let shift = (norm_dist * spec_len as f64) as usize;
-                let idx = (self.spectrum_offset + shift) % spec_len;
-                cell.fg = Some(self.spectrum[idx].to_crossterm());
+                let shift = self.radial_shift[y][x];
+                match self.phase {
+                    Phase::Cycling => {
+                        let idx = (self.spectrum_offset + shift) % spec_len;
+                        cell.fg = Some(self.spectrum[idx].to_crossterm());
+                    }
+                    Phase::Transitioning => {
+                        let last_cycle_color = self.spectrum[(spec_len - 1 + shift) % spec_len];
+                        let t = self.trans_frame as f64 / self.trans_total as f64;
+                        let c = Rgb::lerp(last_cycle_color, self.final_colors[y][x], t);
+                        cell.fg = Some(c.to_crossterm());
+                    }
+                    Phase::Done => {
+                        cell.fg = Some(self.final_colors[y][x].to_crossterm());
+                    }
+                }
             }
         }
 
-        false
+        self.phase == Phase::Done
     }
 }
