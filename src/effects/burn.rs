@@ -13,7 +13,7 @@ use std::collections::VecDeque;
 const BURN_CHARS: [char; 9] = ['\'', '.', '▖', '▙', '█', '▜', '▀', '▝', '.'];
 const SMOKE_SYMBOLS: [char; 6] = ['.', ',', '\'', '`', '#', '*'];
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum BurnPhase {
     Waiting,
     Burning,
@@ -392,3 +392,7 @@ impl BurnEffect {
         queue_done && chars_done && smoke_done
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/burn.rs"]
+mod tests;

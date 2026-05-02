@@ -424,3 +424,7 @@ impl BubblesEffect {
         all_done
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/bubbles.rs"]
+mod tests;

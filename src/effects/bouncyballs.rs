@@ -237,3 +237,7 @@ impl BouncyBallsEffect {
         all_done
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/bouncyballs.rs"]
+mod tests;

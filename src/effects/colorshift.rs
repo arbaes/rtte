@@ -190,3 +190,7 @@ impl ColorShiftEffect {
         self.phase == Phase::Done
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/colorshift.rs"]
+mod tests;
