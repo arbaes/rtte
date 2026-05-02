@@ -1,7 +1,10 @@
 // Decrypt effect — faithful TTE reimplementation
 //
-// Three phases: typing → fast_decrypt → slow_decrypt → discovered
-// Each character independently transitions through scenes via events.
+// Two phases:
+// 1. Typing: chars are revealed left-to-right with a brief block-char rollover
+//    then settle on a random ciphertext glyph.
+// 2. Decrypting: when typing finishes, ALL chars synchronously start
+//    fast_decrypt → slow_decrypt → discovered.
 
 pub const NAME: &str = "decrypt";
 pub const DESCRIPTION: &str = "Display a movie style decryption effect.";
@@ -18,30 +21,27 @@ struct SceneFrame {
     duration: usize,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum CharPhase {
     Pending,
     Typing,
+    Waiting,
     FastDecrypt,
     SlowDecrypt,
     Discovered,
     Done,
 }
 
-#[derive(Clone)]
 struct CharAnim {
     y: usize,
     x: usize,
     original_ch: char,
-    visible: bool,
     phase: CharPhase,
     scene: Vec<SceneFrame>,
     scene_idx: usize,
     hold_count: usize,
     scene_complete: bool,
     final_color: Rgb,
-    cipher_color: Rgb,
-    // Pre-built scenes
     fast_decrypt_scene: Vec<SceneFrame>,
     slow_decrypt_scene: Vec<SceneFrame>,
     discovered_scene: Vec<SceneFrame>,
@@ -77,15 +77,19 @@ impl CharAnim {
         self.scene[self.scene_idx].color
     }
 
-    fn transition_to_next_phase(&mut self) {
+    fn activate_fast_decrypt(&mut self) {
+        self.phase = CharPhase::FastDecrypt;
+        self.scene = self.fast_decrypt_scene.clone();
+        self.scene_idx = 0;
+        self.hold_count = 0;
+        self.scene_complete = false;
+    }
+
+    fn maybe_advance(&mut self) {
+        if !self.scene_complete {
+            return;
+        }
         match self.phase {
-            CharPhase::Typing => {
-                self.phase = CharPhase::FastDecrypt;
-                self.scene = self.fast_decrypt_scene.clone();
-                self.scene_idx = 0;
-                self.hold_count = 0;
-                self.scene_complete = false;
-            }
             CharPhase::FastDecrypt => {
                 self.phase = CharPhase::SlowDecrypt;
                 self.scene = self.slow_decrypt_scene.clone();
@@ -102,11 +106,20 @@ impl CharAnim {
             }
             CharPhase::Discovered => {
                 self.phase = CharPhase::Done;
-                self.scene_complete = true;
+            }
+            CharPhase::Typing => {
+                self.phase = CharPhase::Waiting;
             }
             _ => {}
         }
     }
+}
+
+#[derive(PartialEq, Debug)]
+enum EffectPhase {
+    Typing,
+    Decrypting,
+    Complete,
 }
 
 pub struct DecryptEffect {
@@ -114,18 +127,35 @@ pub struct DecryptEffect {
     typing_order: Vec<usize>,
     typing_pos: usize,
     typing_speed: usize,
-    active_indices: Vec<usize>,
     phase: EffectPhase,
-    encrypted_symbols: Vec<char>,
     width: usize,
     height: usize,
+    original_chars: Vec<Vec<char>>,
 }
 
-#[derive(PartialEq)]
-enum EffectPhase {
-    Typing,
-    Decrypting,
-    Complete,
+fn build_encrypted_symbols() -> Vec<char> {
+    let mut out = Vec::with_capacity(523);
+    for n in 33..=126u32 {
+        if let Some(c) = char::from_u32(n) {
+            out.push(c);
+        }
+    }
+    for n in 9608..=9631u32 {
+        if let Some(c) = char::from_u32(n) {
+            out.push(c);
+        }
+    }
+    for n in 9472..=9598u32 {
+        if let Some(c) = char::from_u32(n) {
+            out.push(c);
+        }
+    }
+    for n in 174..=451u32 {
+        if let Some(c) = char::from_u32(n) {
+            out.push(c);
+        }
+    }
+    out
 }
 
 impl DecryptEffect {
@@ -140,74 +170,82 @@ impl DecryptEffect {
             Rgb::from_hex("00ff00"),
         ];
 
-        // TTE default: single orange color
-        let final_gradient = Gradient::new(
-            &[
-                Rgb::from_hex("8A008A"),
-                Rgb::from_hex("00D1FF"),
-                Rgb::from_hex("ffffff"),
-            ],
-            12,
-        );
+        let final_gradient = Gradient::new(&[Rgb::from_hex("eda000")], 12);
 
-        // Build encrypted symbol pool
-        let mut encrypted_symbols: Vec<char> = Vec::new();
-        // ASCII printable
-        for b in 33u8..=126 {
-            encrypted_symbols.push(b as char);
-        }
-        // Block drawing
-        for c in '█'..='▓' {
-            encrypted_symbols.push(c);
-        }
-        encrypted_symbols.extend(&['░', '▒', '▓', '█', '▉', '▊', '▋', '▌', '▍', '▎', '▏', '▐']);
-
+        let encrypted_symbols = build_encrypted_symbols();
         let block_chars = ['▉', '▓', '▒', '░'];
 
-        // Duration multiplier for 60fps (TTE runs ~25fps effectively)
-        let dm: usize = 2;
+        let original_chars: Vec<Vec<char>> = grid
+            .cells
+            .iter()
+            .map(|row| row.iter().map(|c| c.ch).collect())
+            .collect();
 
-        // Build per-char state
-        let mut chars = Vec::with_capacity(height * width);
+        let mut text_top = usize::MAX;
+        let mut text_bottom = 0usize;
+        let mut text_left = usize::MAX;
+        let mut text_right = 0usize;
+        for y in 0..height {
+            for x in 0..width {
+                if grid.cells[y][x].ch != ' ' {
+                    text_top = text_top.min(y);
+                    text_bottom = text_bottom.max(y);
+                    text_left = text_left.min(x);
+                    text_right = text_right.max(x);
+                }
+            }
+        }
+        let text_h = text_bottom.saturating_sub(text_top).max(1);
+        let text_w = text_right.saturating_sub(text_left).max(1);
+
+        let mut chars: Vec<CharAnim> = Vec::new();
+        let mut typing_order: Vec<usize> = Vec::new();
         for y in 0..height {
             for x in 0..width {
                 let original_ch = grid.cells[y][x].ch;
-                let final_color =
-                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
+                if original_ch == ' ' {
+                    continue;
+                }
+                let ry = y.saturating_sub(text_top);
+                let rx = x.saturating_sub(text_left);
+                let final_color = final_gradient.color_at_coord(
+                    ry,
+                    rx,
+                    text_h,
+                    text_w,
+                    GradientDirection::Vertical,
+                );
                 let cipher_color = cipher_colors[rng.gen_range(0..cipher_colors.len())];
 
-                // Build typing scene: 4 block chars + 1 encrypted symbol
                 let mut typing_scene = Vec::new();
                 for &blk in &block_chars {
                     typing_scene.push(SceneFrame {
                         symbol: blk,
                         color: cipher_colors[rng.gen_range(0..cipher_colors.len())],
-                        duration: 2 * dm,
+                        duration: 2,
                     });
                 }
                 typing_scene.push(SceneFrame {
                     symbol: encrypted_symbols[rng.gen_range(0..encrypted_symbols.len())],
                     color: cipher_color,
-                    duration: dm,
+                    duration: 1,
                 });
 
-                // Build fast_decrypt scene: 80 random symbols
                 let fast_decrypt_scene: Vec<SceneFrame> = (0..80)
                     .map(|_| SceneFrame {
                         symbol: encrypted_symbols[rng.gen_range(0..encrypted_symbols.len())],
                         color: cipher_color,
-                        duration: 2 * dm,
+                        duration: 2,
                     })
                     .collect();
 
-                // Build slow_decrypt scene: 1-15 iterations with variable timing
                 let slow_iters = rng.gen_range(1..=15);
                 let slow_decrypt_scene: Vec<SceneFrame> = (0..slow_iters)
                     .map(|_| {
-                        let dur = if rng.gen_range(0..100) < 30 {
-                            rng.gen_range(35..=60) * dm
+                        let dur = if rng.gen_range(0..=100) <= 30 {
+                            rng.gen_range(35..60)
                         } else {
-                            rng.gen_range(3..=6) * dm
+                            rng.gen_range(3..6)
                         };
                         SceneFrame {
                             symbol: encrypted_symbols[rng.gen_range(0..encrypted_symbols.len())],
@@ -217,38 +255,31 @@ impl DecryptEffect {
                     })
                     .collect();
 
-                // Build discovered scene: white → final_color gradient
                 let discover_steps = 10;
-                let mut discovered_scene: Vec<SceneFrame> = (0..discover_steps)
+                let discovered_scene: Vec<SceneFrame> = (0..discover_steps)
                     .map(|i| {
                         let t = (i + 1) as f64 / discover_steps as f64;
                         let color = Rgb::lerp(Rgb::new(255, 255, 255), final_color, t);
                         SceneFrame {
                             symbol: original_ch,
                             color,
-                            duration: 2 * dm,
+                            duration: 5,
                         }
                     })
                     .collect();
-                // Final hold
-                discovered_scene.push(SceneFrame {
-                    symbol: original_ch,
-                    color: final_color,
-                    duration: 5 * dm,
-                });
 
+                let idx = chars.len();
+                typing_order.push(idx);
                 chars.push(CharAnim {
                     y,
                     x,
                     original_ch,
-                    visible: false,
                     phase: CharPhase::Pending,
                     scene: typing_scene,
                     scene_idx: 0,
                     hold_count: 0,
                     scene_complete: false,
                     final_color,
-                    cipher_color,
                     fast_decrypt_scene,
                     slow_decrypt_scene,
                     discovered_scene,
@@ -256,19 +287,15 @@ impl DecryptEffect {
             }
         }
 
-        // Typing order: left-to-right, top-to-bottom
-        let typing_order: Vec<usize> = (0..chars.len()).collect();
-
         DecryptEffect {
             chars,
             typing_order,
             typing_pos: 0,
             typing_speed: 2,
-            active_indices: Vec::new(),
             phase: EffectPhase::Typing,
-            encrypted_symbols,
             width,
             height,
+            original_chars,
         }
     }
 
@@ -277,109 +304,88 @@ impl DecryptEffect {
 
         match self.phase {
             EffectPhase::Typing => {
-                // 75% chance to type this frame
-                if self.typing_pos < self.typing_order.len() && rng.gen_range(0..100) <= 75 {
+                if self.typing_pos < self.typing_order.len() && rng.gen_range(0..=100) <= 75 {
                     for _ in 0..self.typing_speed {
                         if self.typing_pos >= self.typing_order.len() {
                             break;
                         }
-
-                        // Skip spaces
-                        while self.typing_pos < self.typing_order.len() {
-                            let peek = self.typing_order[self.typing_pos];
-                            if peek < self.chars.len() && self.chars[peek].original_ch == ' ' {
-                                self.chars[peek].visible = true;
-                                self.chars[peek].phase = CharPhase::Done;
-                                self.chars[peek].scene_complete = true;
-                                self.typing_pos += 1;
-                            } else {
-                                break;
-                            }
-                        }
-                        if self.typing_pos >= self.typing_order.len() {
-                            break;
-                        }
-
                         let idx = self.typing_order[self.typing_pos];
                         self.typing_pos += 1;
-
-                        if idx < self.chars.len() {
-                            let ca = &mut self.chars[idx];
-                            ca.visible = true;
-                            ca.phase = CharPhase::Typing;
-                            ca.scene_idx = 0;
-                            ca.hold_count = 0;
-                            ca.scene_complete = false;
-                            self.active_indices.push(idx);
-                        }
+                        let ca = &mut self.chars[idx];
+                        ca.phase = CharPhase::Typing;
+                        ca.scene_idx = 0;
+                        ca.hold_count = 0;
+                        ca.scene_complete = false;
                     }
                 }
-
-                // Check if typing is done
-                if self.typing_pos >= self.typing_order.len() {
-                    let all_typed = self.active_indices.iter().all(|&idx| {
-                        self.chars[idx].scene_complete || self.chars[idx].phase != CharPhase::Typing
-                    });
-                    if all_typed {
-                        self.phase = EffectPhase::Decrypting;
+                let typing_done = self.typing_pos >= self.typing_order.len()
+                    && self
+                        .chars
+                        .iter()
+                        .all(|c| c.phase != CharPhase::Typing || c.scene_complete);
+                if typing_done {
+                    for c in &mut self.chars {
+                        if c.phase != CharPhase::Pending {
+                            c.activate_fast_decrypt();
+                        }
                     }
+                    self.phase = EffectPhase::Decrypting;
                 }
             }
             EffectPhase::Decrypting => {
-                // Check completion
-                let all_done = self.active_indices.is_empty()
-                    || self
-                        .active_indices
-                        .iter()
-                        .all(|&idx| self.chars[idx].phase == CharPhase::Done);
+                let all_done = self
+                    .chars
+                    .iter()
+                    .all(|c| c.phase == CharPhase::Done || c.phase == CharPhase::Pending);
                 if all_done {
                     self.phase = EffectPhase::Complete;
                 }
             }
-            EffectPhase::Complete => {
-                // Set final state
-                for ca in &self.chars {
-                    if ca.y < grid.height && ca.x < grid.width {
-                        let cell = &mut grid.cells[ca.y][ca.x];
-                        cell.visible = true;
-                        cell.ch = ca.original_ch;
-                        cell.fg = Some(ca.final_color.to_crossterm());
-                    }
-                }
-                return true;
-            }
+            EffectPhase::Complete => {}
         }
 
-        // Tick all active chars and handle transitions
-        for &idx in &self.active_indices {
-            let ca = &mut self.chars[idx];
-            ca.tick();
-            if ca.scene_complete && ca.phase != CharPhase::Done {
-                ca.transition_to_next_phase();
-            }
-        }
-
-        // Remove finished chars from active list
-        self.active_indices
-            .retain(|&idx| self.chars[idx].phase != CharPhase::Done);
-
-        // Render to grid
-        for ca in &self.chars {
-            if ca.y < grid.height && ca.x < grid.width {
-                let cell = &mut grid.cells[ca.y][ca.x];
-                cell.visible = ca.visible;
-                if ca.visible && ca.phase != CharPhase::Pending {
-                    if ca.phase == CharPhase::Done {
-                        cell.ch = ca.original_ch;
-                        cell.fg = Some(ca.final_color.to_crossterm());
-                    } else {
-                        cell.ch = ca.current_symbol();
-                        cell.fg = Some(ca.current_color().to_crossterm());
-                    }
+        for c in &mut self.chars {
+            match c.phase {
+                CharPhase::Pending | CharPhase::Waiting | CharPhase::Done => {}
+                _ => {
+                    c.tick();
+                    c.maybe_advance();
                 }
             }
         }
 
-        false
+        for (y, row) in grid.cells.iter_mut().enumerate() {
+            for (x, cell) in row.iter_mut().enumerate() {
+                cell.visible = false;
+                cell.ch = self.original_chars[y][x];
+                cell.fg = None;
+            }
+        }
+
+        for c in &self.chars {
+            if c.y >= grid.height || c.x >= grid.width {
+                continue;
+            }
+            let cell = &mut grid.cells[c.y][c.x];
+            match c.phase {
+                CharPhase::Pending => {}
+                CharPhase::Done => {
+                    cell.visible = true;
+                    cell.ch = c.original_ch;
+                    cell.fg = Some(c.final_color.to_crossterm());
+                }
+                _ => {
+                    cell.visible = true;
+                    cell.ch = c.current_symbol();
+                    cell.fg = Some(c.current_color().to_crossterm());
+                }
+            }
+        }
+
+        self.phase == EffectPhase::Complete
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/decrypt.rs"]
+mod tests;
