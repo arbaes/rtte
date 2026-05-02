@@ -1,5 +1,4 @@
-// ErrorCorrect effect — faithful TTE reimplementation
-// Swap pairs of characters, show error state, block wipe, correct with movement
+// ErrorCorrect effect — swap pairs of chars; each pair animates error → block-wipe → move → block-wipe → fade
 
 pub const NAME: &str = "errorcorrect";
 pub const DESCRIPTION: &str =
@@ -10,11 +9,10 @@ use crate::engine::Grid;
 use crate::gradient::{Gradient, GradientDirection, Rgb};
 use rand::seq::SliceRandom;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum PairPhase {
     Waiting,
-    ErrorDisplay,
-    ErrorGlitch,
+    Error,
     BlockWipeIn,
     Moving,
     BlockWipeOut,
@@ -33,6 +31,8 @@ struct SwapChar {
     phase: PairPhase,
     frame_count: usize,
     scene_idx: usize,
+    move_progress: f64,
+    move_speed: f64,
     final_color: Rgb,
 }
 
@@ -47,17 +47,15 @@ pub struct ErrorCorrectEffect {
     activated_up_to: usize,
     error_color: Rgb,
     correct_color: Rgb,
-    move_speed: f64,
     width: usize,
     height: usize,
-    dm: usize,
+    original_chars: Vec<Vec<char>>,
 }
 
 impl ErrorCorrectEffect {
     pub fn new(grid: &Grid) -> Self {
         let width = grid.width;
         let height = grid.height;
-        let dm: usize = 2;
 
         let final_gradient = Gradient::new(
             &[
@@ -70,37 +68,58 @@ impl ErrorCorrectEffect {
         let error_color = Rgb::from_hex("e74c3c");
         let correct_color = Rgb::from_hex("45bf55");
 
-        let total_chars = width * height;
-        let error_pairs_pct = 0.1_f64;
-        let num_pairs = ((total_chars as f64 * error_pairs_pct) as usize / 2).max(1);
+        let original_chars: Vec<Vec<char>> = grid
+            .cells
+            .iter()
+            .map(|row| row.iter().map(|c| c.ch).collect())
+            .collect();
 
-        // Collect all positions
-        let mut positions: Vec<(usize, usize)> = Vec::new();
+        let mut text_top = usize::MAX;
+        let mut text_bottom = 0usize;
+        let mut text_left = usize::MAX;
+        let mut text_right = 0usize;
+        let mut text_positions: Vec<(usize, usize)> = Vec::new();
         for y in 0..height {
             for x in 0..width {
-                positions.push((y, x));
+                if grid.cells[y][x].ch != ' ' {
+                    text_positions.push((y, x));
+                    text_top = text_top.min(y);
+                    text_bottom = text_bottom.max(y);
+                    text_left = text_left.min(x);
+                    text_right = text_right.max(x);
+                }
             }
         }
+        let text_h = text_bottom.saturating_sub(text_top).max(1);
+        let text_w = text_right.saturating_sub(text_left).max(1);
+
+        let final_color_at = |y: usize, x: usize| -> Rgb {
+            let ry = y.saturating_sub(text_top);
+            let rx = x.saturating_sub(text_left);
+            final_gradient.color_at_coord(ry, rx, text_h, text_w, GradientDirection::Vertical)
+        };
+
+        let num_chars = text_positions.len();
+        let num_pairs = (num_chars as f64 * 0.1) as usize;
+
         let mut rng = rand::thread_rng();
-        positions.shuffle(&mut rng);
+        let mut shuffled = text_positions.clone();
+        shuffled.shuffle(&mut rng);
 
         let mut swapped_set = std::collections::HashSet::new();
-        let mut swaps = Vec::new();
-        let mut pair_count = 0;
-
+        let mut swaps: Vec<(SwapChar, SwapChar)> = Vec::new();
         let mut i = 0;
-        while pair_count < num_pairs && i + 1 < positions.len() {
-            let (y1, x1) = positions[i];
-            let (y2, x2) = positions[i + 1];
+        while swaps.len() < num_pairs && i + 1 < shuffled.len() {
+            let (y1, x1) = shuffled[i];
+            let (y2, x2) = shuffled[i + 1];
             i += 2;
-
             swapped_set.insert((y1, x1));
             swapped_set.insert((y2, x2));
 
-            let fc1 =
-                final_gradient.color_at_coord(y1, x1, height, width, GradientDirection::Vertical);
-            let fc2 =
-                final_gradient.color_at_coord(y2, x2, height, width, GradientDirection::Vertical);
+            let dx = x2 as f64 - x1 as f64;
+            let dy = y2 as f64 - y1 as f64;
+            let aspect_dist = (dx * dx + (2.0 * dy).powi(2)).sqrt().max(1.0);
+            let move_speed = 0.9 / aspect_dist;
 
             let s1 = SwapChar {
                 orig_y: y1,
@@ -113,7 +132,9 @@ impl ErrorCorrectEffect {
                 phase: PairPhase::Waiting,
                 frame_count: 0,
                 scene_idx: 0,
-                final_color: fc1,
+                move_progress: 0.0,
+                move_speed,
+                final_color: final_color_at(y1, x1),
             };
             let s2 = SwapChar {
                 orig_y: y2,
@@ -126,108 +147,83 @@ impl ErrorCorrectEffect {
                 phase: PairPhase::Waiting,
                 frame_count: 0,
                 scene_idx: 0,
-                final_color: fc2,
+                move_progress: 0.0,
+                move_speed,
+                final_color: final_color_at(y2, x2),
             };
             swaps.push((s1, s2));
-            pair_count += 1;
         }
 
-        // Non-swapped chars
         let mut non_swapped = Vec::new();
-        for y in 0..height {
-            for x in 0..width {
-                if !swapped_set.contains(&(y, x)) {
-                    let fc = final_gradient.color_at_coord(
-                        y,
-                        x,
-                        height,
-                        width,
-                        GradientDirection::Vertical,
-                    );
-                    non_swapped.push((y, x, grid.cells[y][x].ch, fc));
-                }
+        for &(y, x) in &text_positions {
+            if !swapped_set.contains(&(y, x)) {
+                non_swapped.push((y, x, grid.cells[y][x].ch, final_color_at(y, x)));
             }
         }
 
         ErrorCorrectEffect {
             swaps,
             non_swapped,
-            swap_delay: 6 * dm,
+            swap_delay: 6,
             delay_counter: 0,
             activated_up_to: 0,
             error_color,
             correct_color,
-            move_speed: 0.9 / dm as f64,
             width,
             height,
-            dm,
+            original_chars,
         }
     }
 
-    fn tick_swap_char(sc: &mut SwapChar, _error_color: Rgb, _correct_color: Rgb, dm: usize) {
+    fn tick_swap_char(sc: &mut SwapChar) {
         sc.frame_count += 1;
         match sc.phase {
-            PairPhase::Waiting => {}
-            PairPhase::ErrorDisplay => {
-                if sc.frame_count >= dm {
-                    sc.phase = PairPhase::ErrorGlitch;
-                    sc.frame_count = 0;
-                    sc.scene_idx = 0;
-                }
-            }
-            PairPhase::ErrorGlitch => {
-                // 20 frames total: alternating ▓/symbol
-                if sc.frame_count >= 3 * dm {
+            PairPhase::Waiting | PairPhase::Done => {}
+            PairPhase::Error => {
+                if sc.frame_count >= 3 {
                     sc.frame_count = 0;
                     sc.scene_idx += 1;
                     if sc.scene_idx >= 20 {
                         sc.phase = PairPhase::BlockWipeIn;
-                        sc.frame_count = 0;
                         sc.scene_idx = 0;
                     }
                 }
             }
             PairPhase::BlockWipeIn => {
-                if sc.frame_count >= 3 * dm {
+                if sc.frame_count >= 3 {
                     sc.frame_count = 0;
                     sc.scene_idx += 1;
                     if sc.scene_idx >= BLOCK_WIPE_IN.len() {
                         sc.phase = PairPhase::Moving;
-                        sc.frame_count = 0;
                         sc.scene_idx = 0;
+                        sc.move_progress = 0.0;
                     }
                 }
             }
             PairPhase::Moving => {
-                // Move from wrong position toward correct position
-                let dy = sc.orig_y as f64 - sc.cur_y;
-                let dx = sc.orig_x as f64 - sc.cur_x;
-                let dist = (dy * dy + dx * dx).sqrt();
-                if dist < 0.5 {
-                    sc.cur_y = sc.orig_y as f64;
-                    sc.cur_x = sc.orig_x as f64;
+                sc.move_progress = (sc.move_progress + sc.move_speed).min(1.0);
+                sc.cur_y =
+                    sc.wrong_y as f64 + (sc.orig_y as f64 - sc.wrong_y as f64) * sc.move_progress;
+                sc.cur_x =
+                    sc.wrong_x as f64 + (sc.orig_x as f64 - sc.wrong_x as f64) * sc.move_progress;
+                if sc.move_progress >= 1.0 {
                     sc.phase = PairPhase::BlockWipeOut;
                     sc.frame_count = 0;
                     sc.scene_idx = 0;
-                } else {
-                    let speed = 0.9;
-                    sc.cur_y += dy / dist * speed;
-                    sc.cur_x += dx / dist * speed;
                 }
             }
             PairPhase::BlockWipeOut => {
-                if sc.frame_count >= 3 * dm {
+                if sc.frame_count >= 3 {
                     sc.frame_count = 0;
                     sc.scene_idx += 1;
                     if sc.scene_idx >= BLOCK_WIPE_OUT.len() {
                         sc.phase = PairPhase::FinalFade;
-                        sc.frame_count = 0;
                         sc.scene_idx = 0;
                     }
                 }
             }
             PairPhase::FinalFade => {
-                if sc.frame_count >= 3 * dm {
+                if sc.frame_count >= 3 {
                     sc.frame_count = 0;
                     sc.scene_idx += 1;
                     if sc.scene_idx >= 10 {
@@ -235,16 +231,14 @@ impl ErrorCorrectEffect {
                     }
                 }
             }
-            PairPhase::Done => {}
         }
     }
 
     fn render_swap_char(sc: &SwapChar, grid: &mut Grid, error_color: Rgb, correct_color: Rgb) {
         let (ry, rx) = match sc.phase {
-            PairPhase::Waiting
-            | PairPhase::ErrorDisplay
-            | PairPhase::ErrorGlitch
-            | PairPhase::BlockWipeIn => (sc.wrong_y, sc.wrong_x),
+            PairPhase::Waiting | PairPhase::Error | PairPhase::BlockWipeIn => {
+                (sc.wrong_y, sc.wrong_x)
+            }
             PairPhase::Moving => (sc.cur_y.round() as usize, sc.cur_x.round() as usize),
             _ => (sc.orig_y, sc.orig_x),
         };
@@ -258,13 +252,9 @@ impl ErrorCorrectEffect {
         match sc.phase {
             PairPhase::Waiting => {
                 cell.ch = sc.original_ch;
-                cell.fg = Some(sc.final_color.to_crossterm());
-            }
-            PairPhase::ErrorDisplay => {
-                cell.ch = sc.original_ch;
                 cell.fg = Some(error_color.to_crossterm());
             }
-            PairPhase::ErrorGlitch => {
+            PairPhase::Error => {
                 if sc.scene_idx % 2 == 0 {
                     cell.ch = '▓';
                     cell.fg = Some(error_color.to_crossterm());
@@ -279,27 +269,14 @@ impl ErrorCorrectEffect {
                 cell.fg = Some(error_color.to_crossterm());
             }
             PairPhase::Moving => {
-                let t = {
-                    let dy = sc.orig_y as f64 - sc.wrong_y as f64;
-                    let dx = sc.orig_x as f64 - sc.wrong_x as f64;
-                    let total = (dy * dy + dx * dx).sqrt().max(1.0);
-                    let dy2 = sc.orig_y as f64 - sc.cur_y;
-                    let dx2 = sc.orig_x as f64 - sc.cur_x;
-                    let remaining = (dy2 * dy2 + dx2 * dx2).sqrt();
-                    1.0 - (remaining / total)
-                };
                 cell.ch = '█';
+                let t = sc.move_progress;
                 cell.fg = Some(Rgb::lerp(error_color, correct_color, t).to_crossterm());
             }
             PairPhase::BlockWipeOut => {
                 let idx = sc.scene_idx.min(BLOCK_WIPE_OUT.len() - 1);
                 cell.ch = BLOCK_WIPE_OUT[idx];
-                let color = if idx == BLOCK_WIPE_OUT.len() - 1 {
-                    sc.final_color
-                } else {
-                    correct_color
-                };
-                cell.fg = Some(color.to_crossterm());
+                cell.fg = Some(correct_color.to_crossterm());
             }
             PairPhase::FinalFade => {
                 cell.ch = sc.original_ch;
@@ -314,14 +291,15 @@ impl ErrorCorrectEffect {
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
-        // Activate swap pairs with delay
         if self.activated_up_to < self.swaps.len() {
             if self.delay_counter == 0 {
-                let (ref mut s1, ref mut s2) = self.swaps[self.activated_up_to];
-                s1.phase = PairPhase::ErrorDisplay;
+                let (s1, s2) = &mut self.swaps[self.activated_up_to];
+                s1.phase = PairPhase::Error;
                 s1.frame_count = 0;
-                s2.phase = PairPhase::ErrorDisplay;
+                s1.scene_idx = 0;
+                s2.phase = PairPhase::Error;
                 s2.frame_count = 0;
+                s2.scene_idx = 0;
                 self.activated_up_to += 1;
                 self.delay_counter = self.swap_delay;
             } else {
@@ -329,16 +307,19 @@ impl ErrorCorrectEffect {
             }
         }
 
-        // Tick all activated swaps
-        let ec = self.error_color;
-        let cc = self.correct_color;
-        let dm = self.dm;
         for (s1, s2) in &mut self.swaps {
-            Self::tick_swap_char(s1, ec, cc, dm);
-            Self::tick_swap_char(s2, ec, cc, dm);
+            Self::tick_swap_char(s1);
+            Self::tick_swap_char(s2);
         }
 
-        // Render non-swapped chars
+        for (y, row) in grid.cells.iter_mut().enumerate() {
+            for (x, cell) in row.iter_mut().enumerate() {
+                cell.visible = false;
+                cell.ch = self.original_chars[y][x];
+                cell.fg = None;
+            }
+        }
+
         for &(y, x, ch, fc) in &self.non_swapped {
             if y < grid.height && x < grid.width {
                 let cell = &mut grid.cells[y][x];
@@ -348,15 +329,19 @@ impl ErrorCorrectEffect {
             }
         }
 
-        // Render swapped chars
         for (s1, s2) in &self.swaps {
-            Self::render_swap_char(s1, grid, ec, cc);
-            Self::render_swap_char(s2, grid, ec, cc);
+            Self::render_swap_char(s1, grid, self.error_color, self.correct_color);
+            Self::render_swap_char(s2, grid, self.error_color, self.correct_color);
         }
 
-        // Check completion
-        self.swaps
-            .iter()
-            .all(|(s1, s2)| s1.phase == PairPhase::Done && s2.phase == PairPhase::Done)
+        self.activated_up_to >= self.swaps.len()
+            && self
+                .swaps
+                .iter()
+                .all(|(s1, s2)| s1.phase == PairPhase::Done && s2.phase == PairPhase::Done)
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/errorcorrect.rs"]
+mod tests;
