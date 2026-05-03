@@ -150,8 +150,6 @@ impl LaserEtchEffect {
         let width = grid.width;
         let height = grid.height;
 
-        // Gradients
-        let cool_grad = Gradient::new(&[Rgb::from_hex("ffe680"), Rgb::from_hex("ff7b00")], 8);
         let final_gradient = Gradient::new(
             &[
                 Rgb::from_hex("8A008A"),
@@ -160,7 +158,16 @@ impl LaserEtchEffect {
             ],
             8,
         );
+        // Looping laser gradient: forward + reverse spectrum so the cycle has
+        // no seam (matches TTE's Gradient(loop=True)).
         let laser_grad = Gradient::new(&[Rgb::from_hex("ffffff"), Rgb::from_hex("376cff")], 6);
+        let mut laser_spectrum = laser_grad.spectrum().to_vec();
+        {
+            let mut rev = laser_spectrum.clone();
+            rev.reverse();
+            rev.pop();
+            laser_spectrum.extend(rev);
+        }
         let spark_grad = Gradient::new(
             &[
                 Rgb::from_hex("ffffff"),
@@ -170,54 +177,65 @@ impl LaserEtchEffect {
             ],
             6,
         );
-
-        let cool_spectrum = cool_grad.spectrum().to_vec();
-        let laser_spectrum = laser_grad.spectrum().to_vec();
         let spark_spectrum = spark_grad.spectrum().to_vec();
 
-        // Build per-char state with spawn scenes
+        let mut text_top = usize::MAX;
+        let mut text_bottom = 0usize;
+        let mut text_left = usize::MAX;
+        let mut text_right = 0usize;
+        for y in 0..height {
+            for x in 0..width {
+                if grid.cells[y][x].ch != ' ' {
+                    text_top = text_top.min(y);
+                    text_bottom = text_bottom.max(y);
+                    text_left = text_left.min(x);
+                    text_right = text_right.max(x);
+                }
+            }
+        }
+        let text_h = text_bottom.saturating_sub(text_top).max(1);
+        let text_w = text_right.saturating_sub(text_left).max(1);
+
         let mut chars = Vec::with_capacity(height * width);
         for y in 0..height {
             for x in 0..width {
                 let original_ch = grid.cells[y][x].ch;
-                let final_color =
-                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
+                let ry = y.saturating_sub(text_top);
+                let rx = x.saturating_sub(text_left);
+                let final_color = final_gradient.color_at_coord(
+                    ry,
+                    rx,
+                    text_h,
+                    text_w,
+                    GradientDirection::Vertical,
+                );
 
-                // Build spawn scene
-                // TTE durations assume ~20-30fps effective rate; at true 60fps multiply by 2
-                let mut scene = Vec::new();
-                // Frame 1: etch indicator "^"
+                // Per-char cooling gradient: yellow → orange → final_color, 8 steps.
+                // TTE's `Gradient(*cool_stops, final_color, steps=8)` produces 17
+                // colors (2 segments × 8 + 1 final) and replaces what rtte
+                // previously implemented as a separate "transition" phase.
+                let cool_stops = [
+                    Rgb::from_hex("ffe680"),
+                    Rgb::from_hex("ff7b00"),
+                    final_color,
+                ];
+                let cool_grad = Gradient::new(&cool_stops, 8);
+                let cool_spectrum: Vec<Rgb> = cool_grad.spectrum().to_vec();
+
+                let mut scene = Vec::with_capacity(1 + cool_spectrum.len());
+                // Etch indicator "^"
                 scene.push(SceneFrame {
                     symbol: '^',
                     color: Rgb::from_hex("ffe680"),
-                    duration: 6,
+                    duration: 3,
                 });
-                // Cooling gradient: 8 colors
                 for c in &cool_spectrum {
                     scene.push(SceneFrame {
                         symbol: original_ch,
                         color: *c,
-                        duration: 6,
+                        duration: 3,
                     });
                 }
-                // Transition to final color: 8 steps
-                let cool_last = *cool_spectrum.last().unwrap_or(&Rgb::from_hex("ff7b00"));
-                let transition_steps = 8;
-                for i in 0..transition_steps {
-                    let t = (i + 1) as f64 / transition_steps as f64;
-                    let c = Rgb::lerp(cool_last, final_color, t);
-                    scene.push(SceneFrame {
-                        symbol: original_ch,
-                        color: c,
-                        duration: 6,
-                    });
-                }
-                // Final hold
-                scene.push(SceneFrame {
-                    symbol: original_ch,
-                    color: final_color,
-                    duration: 8,
-                });
 
                 chars.push(CharAnim {
                     y,
@@ -236,13 +254,13 @@ impl LaserEtchEffect {
         // Build etch order using recursive backtracker maze pattern
         let etch_order = Self::build_etch_order(width, height, &mut rng);
 
-        // Build spark scene template
+        // Spark scene template: TTE's spark_cooling_frames default = 7.
         let spark_scene: Vec<SceneFrame> = spark_spectrum
             .iter()
             .map(|c| SceneFrame {
                 symbol: '.',
                 color: *c,
-                duration: 14,
+                duration: 7,
             })
             .collect();
 
@@ -284,7 +302,7 @@ impl LaserEtchEffect {
             chars,
             etch_order,
             etch_pos: 0,
-            etch_delay: 2,
+            etch_delay: 1,
             etch_delay_counter: 0,
             etch_speed: 1,
             active_char_indices: Vec::new(),
@@ -372,17 +390,26 @@ impl LaserEtchEffect {
 
         spark.start_x = target_x as f64;
         spark.start_y = target_y as f64;
-        // Fall target: random x offset, bottom of screen
+        // Fall target: random x offset, bottom of canvas.
         let fall_x =
-            (target_x as f64 + rng.gen_range(-20.0..20.0)).clamp(0.0, self.width as f64 - 1.0);
+            (target_x as f64 + rng.gen_range(-20.0..=20.0)).clamp(0.0, self.width as f64 - 1.0);
         let fall_y = self.height as f64 - 1.0;
         spark.end_x = fall_x;
         spark.end_y = fall_y;
-        // Bezier control: same x as fall target, y near etch point
+        // Bezier control: column of fall target, row offset from etch point.
+        // TTE uses `position.row + random.randint(-10, 20)` in bottom-up coords,
+        // which puts the control mostly *above* the etch point (creating a
+        // fountain arc). In rtte's top-down coords, "above" means smaller y,
+        // so the equivalent range is [-20, 10].
         spark.ctrl_x = fall_x;
-        spark.ctrl_y = target_y as f64 + rng.gen_range(-10.0..20.0);
+        spark.ctrl_y = target_y as f64 + rng.gen_range(-20.0..=10.0);
         spark.t = 0.0;
-        spark.speed = 0.015;
+        // Path-based speed (TTE uses speed=0.3 along the bezier with
+        // double_row_diff aspect correction).
+        let dy = spark.end_y - spark.start_y;
+        let dx = spark.end_x - spark.start_x;
+        let aspect_dist = (dx * dx + (2.0 * dy).powi(2)).sqrt().max(1.0);
+        spark.speed = 0.3 / aspect_dist;
         spark.x = target_x as f64;
         spark.y = target_y as f64;
         spark.scene_idx = 0;
@@ -499,16 +526,18 @@ impl LaserEtchEffect {
             }
         }
 
-        // Render laser beam (diagonal line from target upward-right)
+        // Render laser beam (diagonal line from target upward-right). TTE's
+        // beam has `canvas.top + 1` chars so it always extends from the etch
+        // point through the top of the canvas regardless of canvas size.
         if self.laser_active {
-            let laser_len = 15.min(self.width.max(self.height));
+            let laser_len = self.height + 1;
             for i in 0..laser_len {
                 let by = self.laser_target_y as isize - i as isize;
                 let bx = self.laser_target_x as isize + i as isize;
                 if by >= 0 && by < grid.height as isize && bx >= 0 && bx < grid.width as isize {
                     let cell = &mut grid.cells[by as usize][bx as usize];
                     cell.visible = true;
-                    // Looping laser gradient
+                    // Looping laser gradient (mirrored for seamless cycle).
                     let gi = (self.laser_frame / 3 + i) % self.laser_gradient.len();
                     cell.fg = Some(self.laser_gradient[gi].to_crossterm());
                     if i == 0 {
@@ -538,3 +567,7 @@ impl LaserEtchEffect {
         false
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/laseretch.rs"]
+mod tests;
