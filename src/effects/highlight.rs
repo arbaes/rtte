@@ -67,11 +67,10 @@ impl HighlightEffect {
     pub fn new(grid: &Grid) -> Self {
         let width = grid.width;
         let height = grid.height;
-        let dm: usize = 2;
 
         let highlight_brightness = 1.75_f64;
         let highlight_width = 8_usize;
-        let frames_per_tick = 2 * dm;
+        let frames_per_tick = 2_usize;
 
         let final_gradient = Gradient::new(
             &[
@@ -82,42 +81,60 @@ impl HighlightEffect {
             12,
         );
 
-        // Build per-character data
+        let mut text_top = usize::MAX;
+        let mut text_bottom = 0usize;
+        let mut text_left = usize::MAX;
+        let mut text_right = 0usize;
+        for y in 0..height {
+            for x in 0..width {
+                if grid.cells[y][x].ch != ' ' {
+                    text_top = text_top.min(y);
+                    text_bottom = text_bottom.max(y);
+                    text_left = text_left.min(x);
+                    text_right = text_right.max(x);
+                }
+            }
+        }
+        let text_h = text_bottom.saturating_sub(text_top).max(1);
+        let text_w = text_right.saturating_sub(text_left).max(1);
+
         let mut chars: Vec<CharHighlight> = Vec::with_capacity(width * height);
-        // Group by diagonal (bottom-left to top-right: group key = x + (height-1-y))
         let max_diag = width + height;
         let mut groups: Vec<Vec<usize>> = vec![Vec::new(); max_diag];
 
         for y in 0..height {
             for x in 0..width {
-                let base_color =
-                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
+                let ry = y.saturating_sub(text_top);
+                let rx = x.saturating_sub(text_left);
+                let base_color = final_gradient.color_at_coord(
+                    ry,
+                    rx,
+                    text_h,
+                    text_w,
+                    GradientDirection::Vertical,
+                );
 
-                // Build highlight gradient: base → bright → bright → base
-                // with steps=(3, highlight_width, 3)
                 let bright = base_color.adjust_brightness(highlight_brightness);
-                let ramp_up = 3;
-                let ramp_down = 3;
-                let total_steps = ramp_up + highlight_width + ramp_down;
-                let mut highlight_colors = Vec::with_capacity(total_steps);
-
-                // Ramp up: base → bright (3 steps)
-                for i in 0..ramp_up {
-                    let t = (i + 1) as f64 / ramp_up as f64;
-                    highlight_colors.push(Rgb::lerp(base_color, bright, t));
-                }
-                // Peak: bright (highlight_width steps)
+                // Reproduce TTE's
+                //   Gradient(base, bright, bright, base, steps=(3, highlight_width, 3))
+                // verbatim — 3 + highlight_width + 3 + 1 colors, starting with `base`.
+                let mut highlight_colors = Vec::with_capacity(3 + highlight_width + 3 + 1);
+                // Segment 0 (base→bright, 3 sub-steps): t = 0, 1/3, 2/3
+                highlight_colors.push(base_color);
+                highlight_colors.push(Rgb::lerp(base_color, bright, 1.0 / 3.0));
+                highlight_colors.push(Rgb::lerp(base_color, bright, 2.0 / 3.0));
+                // Segment 1 (bright→bright, highlight_width sub-steps): all bright
                 for _ in 0..highlight_width {
                     highlight_colors.push(bright);
                 }
-                // Ramp down: bright → base (3 steps)
-                for i in 0..ramp_down {
-                    let t = (i + 1) as f64 / ramp_down as f64;
-                    highlight_colors.push(Rgb::lerp(bright, base_color, t));
-                }
+                // Segment 2 (bright→base, 3 sub-steps): t = 0, 1/3, 2/3
+                highlight_colors.push(bright);
+                highlight_colors.push(Rgb::lerp(bright, base_color, 1.0 / 3.0));
+                highlight_colors.push(Rgb::lerp(bright, base_color, 2.0 / 3.0));
+                // Final stop
+                highlight_colors.push(base_color);
 
                 let idx = chars.len();
-                // Diagonal: bottom-left to top-right
                 let diag = x + (height.saturating_sub(1).saturating_sub(y));
                 if diag < max_diag {
                     groups[diag].push(idx);
@@ -137,13 +154,11 @@ impl HighlightEffect {
             }
         }
 
-        // Remove empty groups
         groups.retain(|g| !g.is_empty());
         let total_groups = groups.len();
-
-        // Easer speed: step through all groups over a reasonable duration
-        // in_out_circ easing applied to progress
-        let easer_speed = 1.0 / (total_groups as f64 * dm as f64).max(1.0);
+        // TTE's SequenceEaser uses total_steps=100 by default, regardless of
+        // sequence length.
+        let easer_speed = 1.0 / 100.0;
 
         HighlightEffect {
             chars,
@@ -213,3 +228,7 @@ impl HighlightEffect {
         false
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/highlight.rs"]
+mod tests;

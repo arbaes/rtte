@@ -31,12 +31,60 @@ impl Rgb {
         }
     }
 
-    /// Adjust brightness by a factor (0.0 = black, 1.0 = same, 2.0 = double)
+    /// Adjust HSL lightness by a factor (0.0 = black, 1.0 = same, 2.0 = double).
+    /// Matches TTE's `Animation.adjust_color_brightness`: converts to HSL,
+    /// scales L, converts back, preserving hue and saturation.
     pub fn adjust_brightness(self, factor: f64) -> Rgb {
+        let r_n = self.r as f64 / 255.0;
+        let g_n = self.g as f64 / 255.0;
+        let b_n = self.b as f64 / 255.0;
+
+        let max_v = r_n.max(g_n).max(b_n);
+        let min_v = r_n.min(g_n).min(b_n);
+        let mut lightness = (max_v + min_v) / 2.0;
+
+        let (hue, saturation) = if max_v == min_v {
+            (0.0, 0.0)
+        } else {
+            let diff = max_v - min_v;
+            let saturation = if lightness > 0.5 {
+                diff / (2.0 - max_v - min_v)
+            } else {
+                diff / (max_v + min_v)
+            };
+            let mut h = if (max_v - r_n).abs() < f64::EPSILON {
+                (g_n - b_n) / diff + (if g_n < b_n { 6.0 } else { 0.0 })
+            } else if (max_v - g_n).abs() < f64::EPSILON {
+                (b_n - r_n) / diff + 2.0
+            } else {
+                (r_n - g_n) / diff + 4.0
+            };
+            h /= 6.0;
+            (h, saturation)
+        };
+
+        lightness = (lightness * factor).clamp(0.0, 1.0);
+
+        let (red, green, blue) = if saturation == 0.0 {
+            (lightness, lightness, lightness)
+        } else {
+            let q = if lightness < 0.5 {
+                lightness * (1.0 + saturation)
+            } else {
+                lightness + saturation - lightness * saturation
+            };
+            let p = 2.0 * lightness - q;
+            (
+                hue_to_rgb(p, q, hue + 1.0 / 3.0),
+                hue_to_rgb(p, q, hue),
+                hue_to_rgb(p, q, hue - 1.0 / 3.0),
+            )
+        };
+
         Rgb {
-            r: (self.r as f64 * factor).clamp(0.0, 255.0) as u8,
-            g: (self.g as f64 * factor).clamp(0.0, 255.0) as u8,
-            b: (self.b as f64 * factor).clamp(0.0, 255.0) as u8,
+            r: (red * 255.0) as u8,
+            g: (green * 255.0) as u8,
+            b: (blue * 255.0) as u8,
         }
     }
 
@@ -48,6 +96,25 @@ impl Rgb {
             g: (a.g as f64 + (b.g as f64 - a.g as f64) * t) as u8,
             b: (a.b as f64 + (b.b as f64 - a.b as f64) * t) as u8,
         }
+    }
+}
+
+fn hue_to_rgb(p: f64, q: f64, h: f64) -> f64 {
+    let h = if h < 0.0 {
+        h + 1.0
+    } else if h > 1.0 {
+        h - 1.0
+    } else {
+        h
+    };
+    if h < 1.0 / 6.0 {
+        p + (q - p) * 6.0 * h
+    } else if h < 1.0 / 2.0 {
+        q
+    } else if h < 2.0 / 3.0 {
+        p + (q - p) * (2.0 / 3.0 - h) * 6.0
+    } else {
+        p
     }
 }
 
