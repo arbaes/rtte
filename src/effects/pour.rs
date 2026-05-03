@@ -1,5 +1,6 @@
-// Pour effect — faithful TTE reimplementation
-// Characters pour from top, falling to their positions with varied speeds
+// Pour effect — chars fall from canvas top into their final positions.
+// Activation order: ROW_BOTTOM_TO_TOP, alternating left-to-right / right-to-left
+// per row (so the pouring snakes back and forth as it climbs).
 
 pub const NAME: &str = "pour";
 pub const DESCRIPTION: &str = "Pours the characters into position from the given direction.";
@@ -25,20 +26,24 @@ struct PourChar {
 
 pub struct PourEffect {
     chars: Vec<PourChar>,
-    // Groups: columns of chars sorted by row, alternating direction
     pending: Vec<usize>,
     pour_speed: usize,
     gap: usize,
     gap_counter: usize,
+    starting_color: Rgb,
     width: usize,
     height: usize,
+    original_chars: Vec<Vec<char>>,
+}
+
+fn aspect_dist(dy: f64) -> f64 {
+    (2.0 * dy).abs().max(1.0)
 }
 
 impl PourEffect {
     pub fn new(grid: &Grid) -> Self {
         let width = grid.width;
         let height = grid.height;
-        let dm: usize = 2;
 
         let final_gradient = Gradient::new(
             &[
@@ -48,71 +53,111 @@ impl PourEffect {
             ],
             12,
         );
+        let starting_color = Rgb::from_hex("ffffff");
+
+        let original_chars: Vec<Vec<char>> = grid
+            .cells
+            .iter()
+            .map(|row| row.iter().map(|c| c.ch).collect())
+            .collect();
+
+        let mut text_top = usize::MAX;
+        let mut text_bottom = 0usize;
+        let mut text_left = usize::MAX;
+        let mut text_right = 0usize;
+        for y in 0..height {
+            for x in 0..width {
+                if grid.cells[y][x].ch != ' ' {
+                    text_top = text_top.min(y);
+                    text_bottom = text_bottom.max(y);
+                    text_left = text_left.min(x);
+                    text_right = text_right.max(x);
+                }
+            }
+        }
+        let text_h = text_bottom.saturating_sub(text_top).max(1);
+        let text_w = text_right.saturating_sub(text_left).max(1);
 
         let mut rng = rand::thread_rng();
-
-        let mut chars = Vec::with_capacity(width * height);
-
-        // Pour down: start from top, group by column
-        for x in 0..width {
-            for y in 0..height {
-                let final_color =
-                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Vertical);
-                let speed_val: f64 = rng.gen_range(0.4..0.6);
-                let start_y = -1.0;
-                let dist = (y as f64 - start_y).abs().max(1.0);
-                let speed = (speed_val / dist) / dm as f64;
-
+        let mut chars: Vec<PourChar> = Vec::new();
+        let mut by_row: Vec<Vec<usize>> = vec![Vec::new(); height];
+        for (y, row_bucket) in by_row.iter_mut().enumerate() {
+            for x in 0..width {
+                let ch = grid.cells[y][x].ch;
+                if ch == ' ' {
+                    continue;
+                }
+                let ry = y.saturating_sub(text_top);
+                let rx = x.saturating_sub(text_left);
+                let final_color = final_gradient.color_at_coord(
+                    ry,
+                    rx,
+                    text_h,
+                    text_w,
+                    GradientDirection::Vertical,
+                );
+                let speed_val: f64 = rng.gen_range(0.4..=0.6);
+                let start_y = 0.0;
+                let dy = y as f64 - start_y;
+                let speed = speed_val / aspect_dist(dy);
+                let idx = chars.len();
                 chars.push(PourChar {
                     final_y: y,
                     final_x: x,
                     start_y,
                     cur_y: start_y,
-                    original_ch: grid.cells[y][x].ch,
+                    original_ch: ch,
                     final_color,
                     progress: 0.0,
                     speed,
                     active: false,
                     done: false,
                 });
+                row_bucket.push(idx);
             }
         }
+        for row in &mut by_row {
+            row.sort_by_key(|&i| chars[i].final_x);
+        }
 
-        // Build pending list: alternating column order (even cols forward, odd reversed)
-        let mut pending = Vec::new();
-        for x in 0..width {
-            let base = x * height;
-            if x % 2 == 0 {
-                for y in 0..height {
-                    pending.push(base + y);
-                }
-            } else {
-                for y in (0..height).rev() {
-                    pending.push(base + y);
-                }
+        // Build pending list: ROW_BOTTOM_TO_TOP, alternating direction per row.
+        let mut pending: Vec<usize> = Vec::new();
+        let mut group_idx = 0usize;
+        for y in (0..height).rev() {
+            let row = &by_row[y];
+            if row.is_empty() {
+                continue;
             }
+            if group_idx % 2 == 0 {
+                pending.extend(row.iter().copied());
+            } else {
+                pending.extend(row.iter().rev().copied());
+            }
+            group_idx += 1;
         }
 
         PourEffect {
             chars,
             pending,
             pour_speed: 2,
-            gap: dm,
+            gap: 1,
             gap_counter: 0,
+            starting_color,
             width,
             height,
+            original_chars,
         }
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
-        // Activate characters
         if !self.pending.is_empty() {
             if self.gap_counter == 0 {
                 for _ in 0..self.pour_speed {
-                    if let Some(idx) = self.pending.first().copied() {
-                        self.pending.remove(0);
-                        self.chars[idx].active = true;
+                    if self.pending.is_empty() {
+                        break;
                     }
+                    let idx = self.pending.remove(0);
+                    self.chars[idx].active = true;
                 }
                 self.gap_counter = self.gap;
             } else {
@@ -120,15 +165,13 @@ impl PourEffect {
             }
         }
 
-        // Tick movement
         let mut all_done = self.pending.is_empty();
         for ch in &mut self.chars {
             if !ch.active || ch.done {
                 continue;
             }
-            ch.progress += ch.speed;
+            ch.progress = (ch.progress + ch.speed).min(1.0);
             if ch.progress >= 1.0 {
-                ch.progress = 1.0;
                 ch.done = true;
             }
             let eased = easing::in_quad(ch.progress);
@@ -138,10 +181,11 @@ impl PourEffect {
             }
         }
 
-        // Render
-        for row in &mut grid.cells {
-            for cell in row {
+        for (y, row) in grid.cells.iter_mut().enumerate() {
+            for (x, cell) in row.iter_mut().enumerate() {
                 cell.visible = false;
+                cell.ch = self.original_chars[y][x];
+                cell.fg = None;
             }
         }
 
@@ -154,9 +198,9 @@ impl PourEffect {
                 let cell = &mut grid.cells[ry as usize][ch.final_x];
                 cell.visible = true;
                 cell.ch = ch.original_ch;
-                let start_c = Rgb::new(255, 255, 255);
-                let t = ch.progress;
-                cell.fg = Some(Rgb::lerp(start_c, ch.final_color, t).to_crossterm());
+                cell.fg = Some(
+                    Rgb::lerp(self.starting_color, ch.final_color, ch.progress).to_crossterm(),
+                );
             }
         }
 
@@ -174,3 +218,7 @@ impl PourEffect {
         false
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/pour.rs"]
+mod tests;
