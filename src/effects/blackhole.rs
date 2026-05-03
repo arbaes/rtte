@@ -129,8 +129,10 @@ pub struct BlackholeEffect {
 impl BlackholeEffect {
     pub fn new(grid: &Grid) -> Self {
         let (width, height) = (grid.width, grid.height);
-        let center_y = height as f64 / 2.0;
-        let center_x = width as f64 / 2.0;
+        // Geometric center of the canvas (matches TTE's canvas.center, which
+        // is at the half-cell point between the four central cells).
+        let center_y = (height as f64 - 1.0) / 2.0;
+        let center_x = (width as f64 - 1.0) / 2.0;
         // Matches TTE: radius = min(width*0.3, height*0.20), min 3.
         // ASPECT stretches x separately in circle_positions.
         let radius = (width as f64 * 0.3)
@@ -596,9 +598,9 @@ impl BlackholeEffect {
     }
 }
 
-/// Terminal chars are taller than wide; stretch x to make the ring circular.
-/// Value depends on terminal font — 1.5 works well for most monospace fonts.
-const ASPECT: f64 = 1.5;
+/// TTE's `find_coords_on_circle` doubles the x-distance from origin to
+/// correct for terminal cells being ~2:1 height:width. Match exactly.
+const ASPECT: f64 = 2.0;
 
 fn circle_positions(center_y: f64, center_x: f64, radius: f64, n: usize) -> Vec<(f64, f64)> {
     let tau = std::f64::consts::TAU;
