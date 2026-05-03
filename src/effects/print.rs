@@ -1,7 +1,7 @@
-// Print effect — faithful TTE reimplementation
-//
-// Typewriter: print head moves L→R, types characters with block animation,
-// carriage returns to next row with eased motion.
+// Print effect — typewriter that types each row at the canvas bottom and
+// scrolls already-typed rows up by one each time a new row begins. The print
+// head stays on the bottom row, moving L→R while typing and performing a
+// carriage return (eased horizontal motion) between rows.
 
 pub const NAME: &str = "print";
 pub const DESCRIPTION: &str = "Lines are printed one at a time following a print head. Print head performs line feed, carriage return.";
@@ -19,9 +19,8 @@ struct SceneFrame {
 }
 
 #[derive(Clone)]
-struct CharAnim {
-    y: usize,
-    x: usize,
+struct PrintChar {
+    final_x: usize,
     original_ch: char,
     visible: bool,
     scene: Vec<SceneFrame>,
@@ -31,7 +30,7 @@ struct CharAnim {
     final_color: Rgb,
 }
 
-impl CharAnim {
+impl PrintChar {
     fn tick(&mut self) {
         if self.scene_complete || self.scene.is_empty() {
             return;
@@ -51,6 +50,12 @@ impl CharAnim {
         if self.scene.is_empty() {
             return self.original_ch;
         }
+        if self.scene_complete {
+            // Last frame is `(original_ch, final_color)` — use it directly so
+            // chars that finished their typed animation (or were short-
+            // circuited, e.g. spaces) don't keep rendering frame 0's '█'.
+            return self.scene.last().unwrap().symbol;
+        }
         self.scene[self.scene_idx].symbol
     }
 
@@ -58,44 +63,51 @@ impl CharAnim {
         if self.scene.is_empty() {
             return self.final_color;
         }
+        if self.scene_complete {
+            return self.scene.last().unwrap().color;
+        }
         self.scene[self.scene_idx].color
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum Phase {
-    Printing,
+    Typing,
     CarriageReturn,
     Complete,
 }
 
 pub struct PrintEffect {
-    chars: Vec<Vec<CharAnim>>, // [row][col]
-    current_row: usize,
-    col_pos: usize, // next char to type in current row
+    chars: Vec<Vec<PrintChar>>, // [input_row][col]
+    cur_y: Vec<isize>,          // current screen row for each input row (-1 = unstarted)
+    pending_rows: Vec<usize>,   // input rows to process (top-to-bottom)
+    processed_rows: Vec<usize>, // already-typed rows
+    typing_row: Option<usize>,
+    col_pos: usize,
     print_speed: usize,
-    active_indices: Vec<(usize, usize)>,
     phase: Phase,
-    // Print head
     head_visible: bool,
-    head_y: usize,
     head_x: f64,
-    // Carriage return motion
     cr_start_x: f64,
     cr_target_x: f64,
     cr_progress: f64,
-    cr_speed: f64,
+    cr_speed_per_unit: f64,
     width: usize,
     height: usize,
-    // Duration multiplier for 60fps
-    dm: usize,
+    original_chars: Vec<Vec<char>>,
+}
+
+fn last_non_space_col(chars: &[PrintChar]) -> usize {
+    chars
+        .iter()
+        .rposition(|c| c.original_ch != ' ')
+        .unwrap_or(chars.len().saturating_sub(1))
 }
 
 impl PrintEffect {
     pub fn new(grid: &Grid) -> Self {
         let width = grid.width;
         let height = grid.height;
-        let dm: usize = 2;
 
         let final_gradient = Gradient::new(
             &[
@@ -106,39 +118,68 @@ impl PrintEffect {
             12,
         );
 
-        let block_syms = ['█', '▓', '▒', '░'];
+        let original_chars: Vec<Vec<char>> = grid
+            .cells
+            .iter()
+            .map(|row| row.iter().map(|c| c.ch).collect())
+            .collect();
 
-        let mut chars: Vec<Vec<CharAnim>> = Vec::with_capacity(height);
+        let mut text_top = usize::MAX;
+        let mut text_bottom = 0usize;
+        let mut text_left = usize::MAX;
+        let mut text_right = 0usize;
+        for y in 0..height {
+            for x in 0..width {
+                if grid.cells[y][x].ch != ' ' {
+                    text_top = text_top.min(y);
+                    text_bottom = text_bottom.max(y);
+                    text_left = text_left.min(x);
+                    text_right = text_right.max(x);
+                }
+            }
+        }
+        let text_h = text_bottom.saturating_sub(text_top).max(1);
+        let text_w = text_right.saturating_sub(text_left).max(1);
+
+        let block_syms = ['█', '▓', '▒', '░'];
+        let typing_head_color = Rgb::new(255, 255, 255);
+
+        let mut chars: Vec<Vec<PrintChar>> = Vec::with_capacity(height);
         for y in 0..height {
             let mut row = Vec::with_capacity(width);
             for x in 0..width {
                 let original_ch = grid.cells[y][x].ch;
-                let final_color =
-                    final_gradient.color_at_coord(y, x, height, width, GradientDirection::Diagonal);
+                let ry = y.saturating_sub(text_top);
+                let rx = x.saturating_sub(text_left);
+                let final_color = final_gradient.color_at_coord(
+                    ry,
+                    rx,
+                    text_h,
+                    text_w,
+                    GradientDirection::Diagonal,
+                );
 
-                // Build typed animation: █→▓→▒→░→original_ch
-                // 5-step gradient from white to final color
-                let mut scene = Vec::new();
-                let grad_steps = 5;
+                // Typed animation: █ → ▓ → ▒ → ░ → original_ch with gradient
+                // typing_head_color → final_color over 5 steps × 3 frames
+                // (matches TTE's `Gradient(typing_head_color, final, steps=5)`).
+                let mut scene = Vec::with_capacity(5);
                 for (i, &sym) in block_syms.iter().enumerate() {
-                    let t = (i + 1) as f64 / grad_steps as f64;
-                    let color = Rgb::lerp(Rgb::new(255, 255, 255), final_color, t);
+                    let t = i as f64 / 4.0;
+                    let color = Rgb::lerp(typing_head_color, final_color, t);
                     scene.push(SceneFrame {
                         symbol: sym,
                         color,
-                        duration: 3 * dm,
+                        duration: 3,
                     });
                 }
-                // Final: original character at final color
                 scene.push(SceneFrame {
                     symbol: original_ch,
                     color: final_color,
-                    duration: 3 * dm,
+                    duration: 3,
                 });
 
-                row.push(CharAnim {
-                    y,
-                    x,
+                row.push(PrintChar {
+                    final_x: x,
                     original_ch,
                     visible: false,
                     scene,
@@ -151,112 +192,140 @@ impl PrintEffect {
             chars.push(row);
         }
 
+        // Pending rows in top-to-bottom input order (TTE: ROW_TOP_TO_BOTTOM).
+        let pending_rows: Vec<usize> = (0..height).collect();
+        let cur_y = vec![-1isize; height];
+
         PrintEffect {
             chars,
-            current_row: 0,
+            cur_y,
+            pending_rows,
+            processed_rows: Vec::new(),
+            typing_row: None,
             col_pos: 0,
             print_speed: 2,
-            active_indices: Vec::new(),
-            phase: Phase::Printing,
-            head_visible: true,
-            head_y: 0,
+            phase: Phase::Typing,
+            head_visible: false,
             head_x: 0.0,
             cr_start_x: 0.0,
             cr_target_x: 0.0,
             cr_progress: 0.0,
-            cr_speed: 0.03, // ~33 frames for full-width return at 60fps
+            // TTE print_head_return_speed = 1.5 along same row (purely
+            // horizontal). Distance has no row component, so progress per
+            // frame = 1.5 / |Δcol|.
+            cr_speed_per_unit: 1.5,
             width,
             height,
-            dm,
+            original_chars,
         }
     }
 
-    fn first_non_space_col(&self, row: usize) -> usize {
-        if row >= self.chars.len() {
-            return 0;
-        }
-        self.chars[row]
-            .iter()
-            .position(|c| c.original_ch != ' ')
-            .unwrap_or(0)
+    fn start_next_row(&mut self) {
+        let typing_y = self.height as isize - 1;
+        let next_row = self.pending_rows.remove(0);
+        // TTE: Row.__init__ sets untyped_chars = [col 0..=right_extent]. The
+        // later left_extent filter in __next__ only trims leading FILL chars,
+        // which rtte's Grid::from_input never produces (input chars come
+        // first, padding only at the end). So input spaces at the start of a
+        // row are real input — they get typed like any other char.
+        self.cur_y[next_row] = typing_y;
+        self.typing_row = Some(next_row);
+        self.col_pos = 0;
+        self.head_x = 0.0;
+        // TTE hides the typing head as soon as CR finishes — during typing
+        // the "head" visual is the typed_animation's first frame ('█') on
+        // each char being typed.
+        self.head_visible = false;
     }
 
     pub fn tick(&mut self, grid: &mut Grid) -> bool {
         match self.phase {
-            Phase::Printing => {
-                if self.current_row >= self.height {
-                    self.phase = Phase::Complete;
-                } else {
-                    // Show print head during L→R typing
-                    self.head_visible = true;
-                    self.head_y = self.current_row;
-
-                    // Type print_speed characters (spaces still consume movement)
-                    let mut typed_this_frame = 0;
-                    while typed_this_frame < self.print_speed && self.col_pos < self.width {
-                        let ca = &mut self.chars[self.current_row][self.col_pos];
+            Phase::Typing => {
+                if self.typing_row.is_none() {
+                    if self.pending_rows.is_empty() {
+                        self.phase = Phase::Complete;
+                    } else if self.processed_rows.is_empty() {
+                        // Very first row — type immediately, no CR.
+                        self.start_next_row();
+                        self.head_visible = false;
+                    } else {
+                        // Should have been transitioned via CarriageReturn.
+                        self.phase = Phase::CarriageReturn;
+                    }
+                }
+                if let Some(row) = self.typing_row {
+                    let row_chars = &mut self.chars[row];
+                    // TTE Row.__init__ trims to right_extent = max non-fill
+                    // col. With no fill in rtte's Grid that's the same as
+                    // last non-space col. Type cols 0..=last_col, including
+                    // any leading or interior spaces — every input char gets
+                    // its full typed_animation just like in TTE.
+                    let last_col = last_non_space_col(row_chars);
+                    let mut typed = 0;
+                    while typed < self.print_speed && self.col_pos <= last_col {
+                        let ca = &mut row_chars[self.col_pos];
                         ca.visible = true;
                         ca.scene_idx = 0;
                         ca.hold_count = 0;
                         ca.scene_complete = false;
-
-                        if ca.original_ch == ' ' {
-                            ca.scene_complete = true;
-                        } else {
-                            self.active_indices.push((self.current_row, self.col_pos));
-                        }
-
                         self.head_x = self.col_pos as f64;
                         self.col_pos += 1;
-                        typed_this_frame += 1;
+                        typed += 1;
                     }
-
-                    // Row complete?
-                    if self.col_pos >= self.width {
-                        if self.current_row + 1 < self.height {
-                            // Start carriage return
-                            self.phase = Phase::CarriageReturn;
-                            self.cr_start_x = self.head_x;
-                            self.cr_target_x =
-                                self.first_non_space_col(self.current_row + 1) as f64;
-                            self.cr_progress = 0.0;
-                            self.head_visible = true;
-                        } else {
-                            // Last row done
+                    if self.col_pos > last_col {
+                        // Row fully typed.
+                        self.processed_rows.push(row);
+                        self.typing_row = None;
+                        if self.pending_rows.is_empty() {
+                            self.phase = Phase::Complete;
                             self.head_visible = false;
-                            self.current_row += 1;
+                        } else {
+                            // Line feed: scroll all typed rows up by 1 BEFORE
+                            // the carriage return so the head moves across an
+                            // empty bottom row (TTE order: row.move_up()
+                            // first, then activate the CR path).
+                            for &r in &self.processed_rows {
+                                self.cur_y[r] -= 1;
+                            }
+                            // CR target = col 0. TTE's left_extent (start of
+                            // untyped_chars after filtering) is 0 unless the
+                            // canvas pads the row with leading FILL chars,
+                            // which rtte's Grid never does.
+                            self.cr_start_x = self.head_x;
+                            self.cr_target_x = 0.0;
+                            self.cr_progress = 0.0;
+                            self.phase = Phase::CarriageReturn;
+                            self.head_visible = true;
                         }
                     }
                 }
             }
-
             Phase::CarriageReturn => {
-                self.cr_progress += self.cr_speed;
+                let dx = (self.cr_target_x - self.cr_start_x).abs().max(1.0);
+                let speed = self.cr_speed_per_unit / dx;
+                self.cr_progress = (self.cr_progress + speed).min(1.0);
+                let eased = easing::in_out_quad(self.cr_progress);
+                self.head_x = self.cr_start_x + (self.cr_target_x - self.cr_start_x) * eased;
                 if self.cr_progress >= 1.0 {
-                    self.cr_progress = 1.0;
-                    // Carriage return complete
-                    self.current_row += 1;
-                    self.col_pos = 0;
-                    self.head_visible = false;
-                    self.phase = Phase::Printing;
+                    self.start_next_row();
+                    self.phase = Phase::Typing;
                 }
-                // Eased position
-                let t = easing::in_out_quad(self.cr_progress);
-                self.head_x = self.cr_start_x + (self.cr_target_x - self.cr_start_x) * t;
-                self.head_y = self.current_row; // stays on current row during return
             }
-
             Phase::Complete => {
-                // Wait for all animations to finish
-                let all_done = self.active_indices.is_empty();
-                if all_done {
-                    for row in &self.chars {
-                        for ca in row {
-                            if ca.y < grid.height && ca.x < grid.width {
-                                let cell = &mut grid.cells[ca.y][ca.x];
-                                cell.visible = true;
-                                cell.ch = ca.original_ch;
-                                cell.fg = Some(ca.final_color.to_crossterm());
+                let any_active = self
+                    .chars
+                    .iter()
+                    .any(|row| row.iter().any(|c| c.visible && !c.scene_complete));
+                if !any_active {
+                    for (input_y, row) in self.chars.iter().enumerate() {
+                        if input_y < grid.height {
+                            for ca in row {
+                                if ca.final_x < grid.width {
+                                    let cell = &mut grid.cells[input_y][ca.final_x];
+                                    cell.visible = true;
+                                    cell.ch = ca.original_ch;
+                                    cell.fg = Some(ca.final_color.to_crossterm());
+                                }
                             }
                         }
                     }
@@ -265,48 +334,49 @@ impl PrintEffect {
             }
         }
 
-        // Tick all active character animations
-        for &(row, col) in &self.active_indices {
-            self.chars[row][col].tick();
-        }
-        self.active_indices
-            .retain(|&(r, c)| !self.chars[r][c].scene_complete);
-
-        // Render to grid
-        for row in &self.chars {
+        // Advance per-char animations.
+        for row in &mut self.chars {
             for ca in row {
-                if ca.y < grid.height && ca.x < grid.width {
-                    let cell = &mut grid.cells[ca.y][ca.x];
-                    cell.visible = ca.visible;
-                    if ca.visible {
-                        if ca.scene_complete {
-                            cell.ch = ca.original_ch;
-                            cell.fg = Some(ca.final_color.to_crossterm());
-                        } else if ca.scene.is_empty()
-                            || ca.scene_idx == 0 && ca.hold_count == 0 && !ca.scene_complete
-                        {
-                            // Not yet started animating (space or pending)
-                            cell.ch = ca.original_ch;
-                            cell.fg = Some(ca.final_color.to_crossterm());
-                        } else {
-                            cell.ch = ca.current_symbol();
-                            cell.fg = Some(ca.current_color().to_crossterm());
-                        }
-                    }
+                if ca.visible && !ca.scene_complete {
+                    ca.tick();
                 }
             }
         }
 
-        // Render print head
+        // Render: clear, then draw each char at its current screen row.
+        for (y, row) in grid.cells.iter_mut().enumerate() {
+            for (x, cell) in row.iter_mut().enumerate() {
+                cell.visible = false;
+                cell.ch = self.original_chars[y][x];
+                cell.fg = None;
+            }
+        }
+        for input_y in 0..self.height {
+            let screen_y = self.cur_y[input_y];
+            if screen_y < 0 || screen_y >= self.height as isize {
+                continue;
+            }
+            let screen_y = screen_y as usize;
+            for ca in &self.chars[input_y] {
+                if !ca.visible {
+                    continue;
+                }
+                if ca.final_x >= self.width {
+                    continue;
+                }
+                let cell = &mut grid.cells[screen_y][ca.final_x];
+                cell.visible = true;
+                cell.ch = ca.current_symbol();
+                cell.fg = Some(ca.current_color().to_crossterm());
+            }
+        }
+
+        // Render print head at canvas bottom.
         if self.head_visible && self.phase != Phase::Complete {
-            let hx = self.head_x.round() as usize;
-            let hy = if self.phase == Phase::CarriageReturn {
-                self.current_row + 1 // next row during CR
-            } else {
-                self.current_row
-            };
-            if hy < grid.height && hx < grid.width {
-                let cell = &mut grid.cells[hy][hx];
+            let hy = self.height.saturating_sub(1);
+            let hx = self.head_x.round() as isize;
+            if hx >= 0 && (hx as usize) < self.width && hy < self.height {
+                let cell = &mut grid.cells[hy][hx as usize];
                 cell.visible = true;
                 cell.ch = '█';
                 cell.fg = Some(Rgb::new(255, 255, 255).to_crossterm());
@@ -316,3 +386,7 @@ impl PrintEffect {
         false
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/effects/print.rs"]
+mod tests;

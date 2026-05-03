@@ -212,11 +212,19 @@ impl Gradient {
                 }
             }
             GradientDirection::Diagonal => {
-                let max = max_row + max_col;
-                if max == 0 {
+                // TTE: `((row*2) + col) / ((max_row*2) + max_col)` in bottom-up
+                // coords (row 0 = visual bottom, max_row = visual top). The
+                // 2× weights the row dimension so the diagonal looks
+                // approximately equal-angled despite the terminal cell aspect.
+                // In rtte top-down (row 0 = visual top), flip the row to keep
+                // the visual orientation: bottom-left = first stop, top-right
+                // = last stop.
+                let denom = 2 * max_row + max_col;
+                if denom == 0 {
                     0.0
                 } else {
-                    (row + col) as f64 / max as f64
+                    let flipped_row = max_row.saturating_sub(row);
+                    (2 * flipped_row + col) as f64 / denom as f64
                 }
             }
             GradientDirection::Radial => {

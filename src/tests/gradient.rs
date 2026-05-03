@@ -79,3 +79,16 @@ fn gradient_color_at_coord_horizontal() {
         "right should be brighter in horizontal gradient"
     );
 }
+
+#[test]
+fn gradient_color_at_coord_diagonal_runs_bottom_left_to_top_right() {
+    // Regression: TTE's diagonal goes visual bottom-left (first stop) to
+    // visual top-right (last stop). In rtte top-down coords that's
+    // (max_row, 0) → (0, max_col). rtte previously used top-left → bottom-
+    // right, which inverted the gradient.
+    let g = Gradient::new(&[Rgb::new(0, 0, 0), Rgb::new(255, 0, 0)], 10);
+    let bottom_left = g.color_at_coord(4, 0, 4, 4, GradientDirection::Diagonal);
+    let top_right = g.color_at_coord(0, 4, 4, 4, GradientDirection::Diagonal);
+    assert_eq!(bottom_left.r, 0, "bottom-left must map to first stop");
+    assert_eq!(top_right.r, 255, "top-right must map to last stop");
+}

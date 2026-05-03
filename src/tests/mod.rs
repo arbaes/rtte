@@ -212,30 +212,29 @@ fn wipe_activates_chars_in_diagonal_order() {
 
 #[test]
 fn print_reveals_row_by_row() {
-    // The print effect types left-to-right, row-by-row. After enough frames
-    // the first row should be complete but the last row should not have started.
+    // The print effect types each row at the canvas bottom and scrolls
+    // already-typed rows up. After only a few ticks at least one cell on
+    // the bottom row must be visible but the effect must not yet be done.
     let input = "ABCDE\nFGHIJ\nKLMNO";
     let mut grid = Grid::from_input(input);
     let mut effect = PrintEffect::new(&grid);
 
-    // Run enough ticks to finish the first row and its carriage return
-    // but not enough to finish all rows (just over 60 frames).
-    for _ in 0..65 {
-        effect.tick(&mut grid);
+    let mut done_at: Option<usize> = None;
+    for i in 0..5 {
+        if effect.tick(&mut grid) {
+            done_at = Some(i);
+            break;
+        }
     }
-
-    // At least some cells in row 0 must be visible.
-    let row0_visible = grid.cells[0].iter().any(|c| c.visible);
     assert!(
-        row0_visible,
-        "print: row 0 should have visible cells after 65 ticks"
+        done_at.is_none(),
+        "print should still be running after a handful of ticks (done at {done_at:?})"
     );
-
-    // Row 2 should not have all cells visible yet.
-    let row2_all_visible = grid.cells[2].iter().all(|c| c.visible || c.ch == ' ');
+    let bottom = grid.height - 1;
+    let bottom_visible = grid.cells[bottom].iter().any(|c| c.visible);
     assert!(
-        !row2_all_visible,
-        "print: row 2 should not be fully visible after only 65 ticks"
+        bottom_visible,
+        "print: typing row (canvas bottom) should have at least one visible cell"
     );
 }
 
